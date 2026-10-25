@@ -1,4 +1,5 @@
 name: Deploy course site
+# Deploys course-v3/site to GitHub Pages (Settings > Pages > Source: GitHub Actions).
 
 on:
   push:
