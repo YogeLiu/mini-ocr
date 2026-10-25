@@ -57,10 +57,12 @@ const groups = [
 const chapters = [...pages].filter((p) => p.startsWith('ch')).sort();
 const sidebar = groups.map(([label, f]) => ({
   label,
+  collapsed: true,
   items: chapters.filter((p) => f(Number(p.match(/^ch(\d+)/)[1]))).map((p) => ({ slug: p, label: titles[p].replace(/^第\s*(\d+)\s*章\s*/, '$1 ') })),
 }));
 sidebar.push({
   label: '附录',
+  collapsed: true,
   items: [...pages].filter((p) => p.startsWith('appendix')).sort().map((p) => ({ slug: p, label: titles[p].replace(/^附录\s*([A-Z])\s*/, '$1 ') })),
 });
 fs.writeFileSync(path.resolve(here, '../sidebar.json'), JSON.stringify(sidebar, null, 2));

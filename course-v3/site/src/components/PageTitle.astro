@@ -1,0 +1,32 @@
+---
+
+const raw = Astro.locals.starlightRoute.entry.data.title;
+const m = raw.match(/^(第\s*\d+\s*章|附录\s*[A-Z])\s*(.+)$/);
+const eyebrow = m ? m[1].replace(/\s+/g, ' ') : '';
+const title = m ? m[2] : raw;
+---
+
+<div class="page-title">
+  {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+  <h1 id="_top">{title}</h1>
+</div>
+
+<style>
+  @layer starlight.core {
+    .page-title { margin-top: 1rem; }
+    .eyebrow {
+      margin: 0 0 .35rem;
+      font-size: .875rem;
+      letter-spacing: .12em;
+      color: var(--sl-color-gray-3);
+    }
+    h1 {
+      font-size: 2rem;
+      line-height: 1.3;
+      font-weight: 650;
+      letter-spacing: .01em;
+      color: var(--sl-color-white);
+      text-wrap: balance;
+    }
+  }
+</style>

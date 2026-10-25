@@ -1,17 +1,243 @@
-/* 长篇阅读排版:窄栏、宽行距、衬线正文 */
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/600.css';
+
+/* 一本安静的书:中性底色、低饱和墨蓝、系统中文字体、窄栏宽行距 */
 :root {
-  --sl-font: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'Noto Serif CJK SC', Georgia, serif;
-  --sl-font-system-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, monospace;
-  --sl-content-width: 46rem;
+  --sl-font: system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Noto Sans CJK SC', 'Source Han Sans SC', sans-serif;
+  --sl-font-system-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --sl-content-width: 42rem;
   --sl-text-body: 1.0625rem;
+  --sl-text-h2: 1.5rem;
+  --sl-text-h3: 1.2rem;
+  --sl-text-h4: 1.05rem;
+  --sl-line-height: 1.9;
+  --sl-nav-height: 3.25rem;
+
+  /* 深色 */
+  --sl-color-white: #ececea;
+  --sl-color-gray-1: #dcdcda;
+  --sl-color-gray-2: #c6c7c6;
+  --sl-color-gray-3: #9b9d9f;
+  --sl-color-gray-4: #6f7175;
+  --sl-color-gray-5: #3a3c3f;
+  --sl-color-gray-6: #26282a;
+  --sl-color-gray-7: #1c1d1f;
+  --sl-color-black: #151618;
+  --sl-color-accent-low: #1d2a36;
+  --sl-color-accent: #5f8fb8;
+  --sl-color-accent-high: #a8c8e4;
+  --sl-color-hairline: #2a2c2f;
+  --sl-color-hairline-light: #2a2c2f;
+  --sl-color-hairline-shade: #222426;
 }
-.sl-markdown-content { line-height: 1.85; }
-.sl-markdown-content :is(h1,h2,h3,h4) { font-family: system-ui, 'PingFang SC', 'Noto Sans SC', sans-serif; letter-spacing: .01em; }
-.sl-markdown-content h2 { font-size: 1.6rem; margin-top: 3rem; padding-bottom: .4rem; border-bottom: 1px solid var(--sl-color-hairline); }
-.sl-markdown-content :not(pre) > code { font-size: .88em; padding: .1em .35em; border-radius: 4px; }
-.sl-markdown-content table { display: block; overflow-x: auto; font-size: .92rem; }
-.sl-markdown-content blockquote { border-inline-start: 3px solid var(--sl-color-accent); background: var(--sl-color-gray-6); padding: .6rem 1rem; border-radius: 0 6px 6px 0; color: var(--sl-color-text); }
-.sl-markdown-content blockquote > :first-child { margin-top: 0; } .sl-markdown-content blockquote > :last-child { margin-bottom: 0; }
-/* 阅读进度条 */
-#read-progress { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--sl-color-accent); z-index: 100; }
-.sl-markdown-content h3 { font-size: 1.25rem; margin-top: 2rem; }
+:root[data-theme='light'] {
+  --sl-color-white: #17191c;
+  --sl-color-gray-1: #26292d;
+  --sl-color-gray-2: #373a3f;
+  --sl-color-gray-3: #646870;
+  --sl-color-gray-4: #8d9096;
+  --sl-color-gray-5: #cfd1d4;
+  --sl-color-gray-6: #ecedee;
+  --sl-color-gray-7: #f5f5f4;
+  --sl-color-black: #fcfcfb;
+  --sl-color-accent-low: #e8eff6;
+  --sl-color-accent: #2d5f8c;
+  --sl-color-accent-high: #1d4468;
+  --sl-color-hairline: #e4e5e6;
+  --sl-color-hairline-light: #e4e5e6;
+  --sl-color-hairline-shade: #eeeff0;
+}
+
+/* 中文排版 */
+body {
+  line-break: strict;
+  text-autospace: normal;
+  text-spacing-trim: space-first;
+  font-feature-settings: 'palt' 0;
+}
+.sl-markdown-content { text-wrap: pretty; hanging-punctuation: first allow-end; }
+.sl-markdown-content :is(p, li) { line-height: 1.9; }
+.sl-markdown-content > * + * { margin-top: 1.15em; }
+
+/* 标题:克制,靠间距而不是线条分层 */
+.sl-markdown-content :is(h2, h3, h4) { font-weight: 650; color: var(--sl-color-white); text-wrap: balance; letter-spacing: .01em; }
+.sl-markdown-content h2 { margin-top: 3.2rem; padding: 0; border: 0; }
+.sl-markdown-content h3 { margin-top: 2.2rem; }
+.sl-markdown-content h4 { margin-top: 1.8rem; }
+.sl-markdown-content :is(h2, h3, h4) + * { margin-top: .8rem; }
+.sl-anchor-link { opacity: .45; }
+
+/* 链接 */
+.sl-markdown-content a:not(.sl-anchor-link) {
+  color: var(--sl-color-accent-high);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--sl-color-accent) 45%, transparent);
+  text-underline-offset: .22em;
+}
+.sl-markdown-content a:not(.sl-anchor-link):hover { text-decoration-color: currentColor; }
+.sl-markdown-content strong { font-weight: 650; color: var(--sl-color-white); }
+
+/* 行内代码:只有淡底,没有边框 */
+.sl-markdown-content :not(pre) > code {
+  font-size: .86em;
+  padding: .12em .38em;
+  border: 0;
+  border-radius: 3px;
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-gray-1);
+}
+
+/* 引用:退到正文旁边,不上色 */
+.sl-markdown-content blockquote {
+  margin-inline: 0;
+  padding: 0 0 0 1.1rem;
+  border: 0;
+  border-inline-start: 2px solid var(--sl-color-gray-5);
+  background: none;
+  color: var(--sl-color-gray-3);
+}
+.sl-markdown-content blockquote > * + * { margin-top: .6em; }
+
+/* 列表 */
+.sl-markdown-content :is(ul, ol) { padding-inline-start: 1.4rem; }
+.sl-markdown-content li + li { margin-top: .35em; }
+.sl-markdown-content li::marker { color: var(--sl-color-gray-4); }
+
+/* 表格:只留横线 */
+.sl-markdown-content table {
+  display: block; overflow-x: auto; width: max-content; max-width: 100%;
+  border-collapse: collapse; font-size: .92rem; line-height: 1.6;
+}
+.sl-markdown-content :is(th, td) { padding: .55rem .9rem; border: 0; border-bottom: 1px solid var(--sl-color-hairline); text-align: start; }
+.sl-markdown-content thead th { font-weight: 600; color: var(--sl-color-white); border-bottom: 1px solid var(--sl-color-gray-5); }
+.sl-markdown-content tbody tr:nth-child(odd) td, .sl-markdown-content tbody tr:nth-child(odd) th { background: none; }
+.sl-markdown-content hr { border: 0; border-top: 1px solid var(--sl-color-hairline); margin-block: 2.5rem; }
+
+/* 代码块:字号略小,圆角小 */
+.expressive-code { --ec-brdRad: 6px; --ec-codeFontSize: .84rem; --ec-codeLineHt: 1.65; margin-top: 1.4rem; }
+
+/* 顶栏与侧栏 */
+header.header { border-bottom: 1px solid var(--sl-color-hairline); }
+.site-title { font-size: 1rem; font-weight: 650; color: var(--sl-color-white); letter-spacing: .01em; }
+.sidebar-content { gap: .9rem; }
+.sidebar-content .large { font-size: .8125rem; font-weight: 600; letter-spacing: .06em; color: var(--sl-color-gray-3); }
+.sidebar-content a { font-size: .9rem; line-height: 1.5; padding: .32rem .7rem; border-radius: 4px; color: var(--sl-color-gray-2); }
+.sidebar-content a:hover { color: var(--sl-color-white); background: var(--sl-color-gray-6); }
+.sidebar-content a[aria-current='page'] { background: var(--sl-color-gray-6); color: var(--sl-color-white); font-weight: 600; }
+.sidebar-content a[aria-current='page']:hover { background: var(--sl-color-gray-6); }
+
+/* 右侧大纲 */
+starlight-toc a, mobile-starlight-toc a { font-size: .8125rem; color: var(--sl-color-gray-3); }
+starlight-toc a[aria-current='true'] { color: var(--sl-color-white); font-weight: 600; }
+
+/* 上下章 */
+.pagination-links a { border-radius: 6px; border-color: var(--sl-color-hairline); box-shadow: none; }
+.pagination-links a:hover { border-color: var(--sl-color-gray-4); }
+.pagination-links .link-title { color: var(--sl-color-white); font-size: 1rem; }
+
+/* 阅读进度 */
+#read-progress { position: fixed; top: 0; left: 0; height: 2px; width: 0; background: var(--sl-color-accent); z-index: 100; }
+
+@media (max-width: 50rem) {
+  :root { --sl-text-body: 1rem; --sl-text-h2: 1.35rem; }
+  h1 { font-size: 1.6rem !important; }
+}
+
+/* ───────── 重点与色彩层(Obsidian / 飞书风格) ───────── */
+:root {
+  --hl: rgba(255, 196, 61, .26);
+  --code-bg: #2c2523; --code-fg: #eea592;
+  --c-blue-bg: #19232e;   --c-blue-fg: #8fb7dc;
+  --c-green-bg: #18271f;  --c-green-fg: #86c79f;
+  --c-amber-bg: #2b2415;  --c-amber-fg: #e2b95e;
+  --c-red-bg: #2e1d1b;    --c-red-fg: #ea9c8f;
+  --c-purple-bg: #231e31; --c-purple-fg: #bca6ea;
+  --h2-color: var(--sl-color-accent-high);
+}
+:root[data-theme='light'] {
+  --hl: rgba(255, 200, 40, .42);
+  --code-bg: #f7ebe8; --code-fg: #b0402b;
+  --c-blue-bg: #eaf2fa;   --c-blue-fg: #2a5d8f;
+  --c-green-bg: #e7f4ec;  --c-green-fg: #2b7549;
+  --c-amber-bg: #fcf1d9;  --c-amber-fg: #94640e;
+  --c-red-bg: #fae9e6;    --c-red-fg: #b03d2c;
+  --c-purple-bg: #f0eaf9; --c-purple-fg: #6544a6;
+}
+
+/* 加粗 = 荧光笔 */
+.sl-markdown-content strong:not(.label) {
+  color: var(--sl-color-white);
+  background-image: linear-gradient(transparent 58%, var(--hl) 58%);
+  padding-inline: .06em;
+  border-radius: 2px;
+}
+/* 行内代码:带色 */
+.sl-markdown-content :not(pre) > code { background: var(--code-bg); color: var(--code-fg); }
+.sl-markdown-content strong code { background: var(--code-bg); }
+/* 标题分色 */
+.sl-markdown-content h2 { color: var(--h2-color); }
+.sl-markdown-content h2 .sl-anchor-link, .sl-markdown-content h3 .sl-anchor-link { color: var(--sl-color-gray-4); }
+/* 列表序号与圆点上色 */
+.sl-markdown-content ol > li::marker { color: var(--c-blue-fg); font-weight: 650; }
+.sl-markdown-content ul > li::marker { color: var(--c-blue-fg); }
+/* 表头淡蓝底,首列加粗 */
+.sl-markdown-content thead th { background: var(--c-blue-bg); color: var(--c-blue-fg); border-bottom: 0; }
+.sl-markdown-content thead th:first-child { border-top-left-radius: 6px; }
+.sl-markdown-content thead th:last-child { border-top-right-radius: 6px; }
+.sl-markdown-content tbody td:first-child { font-weight: 600; color: var(--sl-color-white); }
+
+/* 引用 = callout */
+.sl-markdown-content blockquote.callout {
+  --cb: var(--c-blue-bg); --cf: var(--c-blue-fg);
+  background: var(--cb); border: 0; border-radius: 8px; padding: .9rem 1.1rem; color: var(--sl-color-gray-1);
+}
+.sl-markdown-content blockquote.callout::before {
+  display: block; margin-bottom: .35rem; font-size: .8rem; font-weight: 700; letter-spacing: .08em; color: var(--cf); content: '说明';
+}
+.sl-markdown-content blockquote.callout-warn { --cb: var(--c-amber-bg); --cf: var(--c-amber-fg); }
+.sl-markdown-content blockquote.callout-warn::before { content: '注意'; }
+.sl-markdown-content blockquote.callout-tip { --cb: var(--c-green-bg); --cf: var(--c-green-fg); }
+.sl-markdown-content blockquote.callout-tip::before { content: '答案'; }
+
+/* 行首加粗标签 = 彩色徽标 */
+.sl-markdown-content strong.label {
+  background: var(--lb); color: var(--lf); padding: .08em .6em; border-radius: 999px; font-size: .85em; font-weight: 650;
+  margin-inline-end: .25em; display: inline-block; line-height: 1.6;
+}
+.label-predict { --lb: var(--c-purple-bg); --lf: var(--c-purple-fg); }
+.label-do      { --lb: var(--c-blue-bg);   --lf: var(--c-blue-fg); }
+.label-look    { --lb: var(--c-green-bg);  --lf: var(--c-green-fg); }
+.label-warn    { --lb: var(--c-red-bg);    --lf: var(--c-red-fg); }
+
+/* 必做 / 选做 */
+.sl-markdown-content h3.tag-must, .sl-markdown-content h3.tag-opt { font-size: 1rem; }
+.sl-markdown-content h3.tag-must { color: var(--c-red-fg); }
+.sl-markdown-content h3.tag-opt  { color: var(--c-purple-fg); }
+
+/* 练习卡片 */
+.sl-markdown-content .exercise {
+  margin-block: 1.8rem; padding: 1.1rem 1.3rem 1.2rem; border-radius: 10px;
+  background: var(--c-green-bg); border: 1px solid color-mix(in srgb, var(--c-green-fg) 22%, transparent);
+}
+.sl-markdown-content .exercise > :is(h3, h4):first-child { margin-top: 0; color: var(--c-green-fg); font-size: 1.05rem; }
+.sl-markdown-content .exercise > :is(h3, h4):first-child + * { margin-top: .6rem; }
+.sl-markdown-content .exercise code:not(pre code) { background: color-mix(in srgb, var(--c-green-fg) 12%, transparent); }
+
+/* 章内固定小节 */
+.sl-markdown-content .section-card {
+  --sb: var(--c-blue-bg); --sf: var(--c-blue-fg);
+  margin-block: 2.4rem; padding: 1.1rem 1.4rem 1.3rem; border-radius: 10px; background: var(--sb);
+}
+.sl-markdown-content .section-card > h2:first-child { margin-top: 0; color: var(--sf); font-size: 1.2rem; }
+.sl-markdown-content .section-card > h2:first-child + * { margin-top: .6rem; }
+.sl-markdown-content .section-card :is(ol, ul) > li::marker { color: var(--sf); }
+.section-check   { --sb: var(--c-amber-bg);  --sf: var(--c-amber-fg); }
+.section-summary { --sb: var(--c-green-bg);  --sf: var(--c-green-fg); }
+.section-quiz    { --sb: var(--c-purple-bg); --sf: var(--c-purple-fg); }
+.section-terms   { --sb: var(--c-purple-bg); --sf: var(--c-purple-fg); }
+.sl-markdown-content .section-card code:not(pre code) { background: color-mix(in srgb, var(--sf) 13%, transparent); }
+
+/* 侧栏当前项与右侧大纲加一点色 */
+.sidebar-content a[aria-current='page'] { background: var(--sl-color-accent-low); color: var(--sl-color-accent-high); }
+starlight-toc a[aria-current='true'] { color: var(--sl-color-accent-high); }
+.eyebrow { color: var(--sl-color-accent) !important; font-weight: 600; }
