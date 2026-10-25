@@ -1,0 +1,8 @@
+# course-v3 第 0–34 章所需（2026-10 在 Python 3.12、Linux + RTX 5080 上实测的版本）
+# 有 NVIDIA 显卡：按 PyTorch 官网的说明安装与驱动匹配的 CUDA 版本（本书用的是 cu130 版本）
+# 没有显卡：直接安装下面的 torch 即可（CPU 版本）
+torch==2.14.1
+numpy==2.5.4
+pillow==12.3.0
+matplotlib==3.11.2
+pytest==9.1.1

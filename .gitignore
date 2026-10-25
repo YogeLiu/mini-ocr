@@ -1,0 +1,44 @@
+# Publish only the current course and repository entry documents.
+# Internal plans, historical backups and personal exercises remain local.
+/*
+!/.gitignore
+!/README.md
+!/LICENSE
+!/course-v3/
+
+# Environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.cache/
+node_modules/
+
+# Experiment artifacts (teaching fixtures are explicitly allowed below).
+outputs/
+checkpoints/
+runs/
+wandb/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.log
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+.aws/
+.ssh/
+.codex/
+.agents/
+.vscode/
+.idea/
+*.pem
+*.key
+.DS_Store

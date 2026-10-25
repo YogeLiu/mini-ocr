@@ -1,0 +1,9 @@
+# 第 24、35 章额外需要（读取与微调真实模型）；第 33 章第 4 部分、第 36 章第 5 部分读 parquet 也需要（pyarrow）
+-r requirements.txt
+transformers==5.19.0
+peft==0.21.2
+trl==1.15.0
+datasets==5.1.0
+accelerate==1.15.0
+huggingface_hub==2.2.0
+pyarrow==26.0.0

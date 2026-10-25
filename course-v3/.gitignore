@@ -1,0 +1,6 @@
+outputs/
+__pycache__/
+*.pt
+# Required A2 test fixtures, not training checkpoints.
+!assignments/a2_sequences/tests/fixtures/bpe.pt
+!assignments/a2_sequences/tests/fixtures/gpt.pt
