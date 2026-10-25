@@ -5,6 +5,7 @@
 !/README.md
 !/LICENSE
 !/course-v3/
+!/.github/
 
 # Environments and caches
 .venv/

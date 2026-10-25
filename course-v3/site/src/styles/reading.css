@@ -1,0 +1,17 @@
+/* 长篇阅读排版:窄栏、宽行距、衬线正文 */
+:root {
+  --sl-font: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'Noto Serif CJK SC', Georgia, serif;
+  --sl-font-system-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --sl-content-width: 46rem;
+  --sl-text-body: 1.0625rem;
+}
+.sl-markdown-content { line-height: 1.85; }
+.sl-markdown-content :is(h1,h2,h3,h4) { font-family: system-ui, 'PingFang SC', 'Noto Sans SC', sans-serif; letter-spacing: .01em; }
+.sl-markdown-content h2 { font-size: 1.6rem; margin-top: 3rem; padding-bottom: .4rem; border-bottom: 1px solid var(--sl-color-hairline); }
+.sl-markdown-content :not(pre) > code { font-size: .88em; padding: .1em .35em; border-radius: 4px; }
+.sl-markdown-content table { display: block; overflow-x: auto; font-size: .92rem; }
+.sl-markdown-content blockquote { border-inline-start: 3px solid var(--sl-color-accent); background: var(--sl-color-gray-6); padding: .6rem 1rem; border-radius: 0 6px 6px 0; color: var(--sl-color-text); }
+.sl-markdown-content blockquote > :first-child { margin-top: 0; } .sl-markdown-content blockquote > :last-child { margin-bottom: 0; }
+/* 阅读进度条 */
+#read-progress { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--sl-color-accent); z-index: 100; }
+.sl-markdown-content h3 { font-size: 1.25rem; margin-top: 2rem; }
