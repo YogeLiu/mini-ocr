@@ -1,0 +1,2 @@
+# adapters 只接线；所有学习者算法写入 mechanism。数据工具可用 miniocr.data。
+mechanism = ["mechanism"]

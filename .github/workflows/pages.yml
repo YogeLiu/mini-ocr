@@ -1,10 +1,10 @@
 name: Deploy course site
-# Deploys course-v3/site to GitHub Pages (Settings > Pages > Source: GitHub Actions).
+# Deploys course-v4/site to GitHub Pages (Settings > Pages > Source: GitHub Actions).
 
 on:
   push:
     branches: [main]
-    paths: ['course-v3/**.md', 'course-v3/site/**', '.github/workflows/pages.yml']
+    paths: ['course-v4/**.md', 'course-v4/site/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -21,19 +21,19 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: course-v3/site
+        working-directory: course-v4/site
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: course-v3/site/package-lock.json
+          cache-dependency-path: course-v4/site/package-lock.json
       - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: course-v3/site/dist
+          path: course-v4/site/dist
   deploy:
     needs: build
     runs-on: ubuntu-latest

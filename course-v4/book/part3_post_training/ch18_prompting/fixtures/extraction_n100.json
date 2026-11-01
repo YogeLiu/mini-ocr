@@ -1,0 +1,35 @@
+[
+  {
+    "case": "array",
+    "file": "few_shot-n100-p0-seedNone-revFalse.jsonl",
+    "row_index": 39,
+    "id": "val-a235dab6686d0034c56fcd57",
+    "raw": "\\begin{array}{lll}\n\\frac{1}{2}\\Delta_b|\\nabla_b\\varphi|^2 & = & |\\nabla_b^2\\varphi|^2 + \\langle \\nabla_b\\varphi, \\nabla_b \\Delta_b\\varphi \\rangle \\\\\n& & + [2\\text{Ric} - (n - 2)\\text{Tor}]((\\nabla_b\\varphi)_\\mathbb{C}, (\\nabla_b\\varphi)_\\mathbb{C}) + 2\\langle J\\nabla_b\\varphi, \\nabla_b\\varphi_0 \\rangle\n\\end{array}",
+    "pred": "\\begin{array}{lll}\n\\frac{1}{2}\\Delta_b|\\nabla_b\\varphi|^2 & = & |\\nabla_b^2\\varphi|^2 + \\langle \\nabla_b\\varphi, \\nabla_b \\Delta_b\\varphi \\rangle \\\\\n& & + [2\\text{Ric} - (n - 2)\\text{Tor}]((\\nabla_b\\varphi)_\\mathbb{C}, (\\nabla_b\\varphi)_\\mathbb{C}) + 2\\langle J\\nabla_b\\varphi, \\nabla_b\\varphi_0 \\rangle\n\\end{array}",
+    "extracted": "\\begin{array}{lll}",
+    "target": "\\begin{array}{lll}\\frac{1}{2}\\Delta _{b}|\\nabla _{b}\\varphi |^{2} & = & |\\nabla_{b}^{2}\\varphi |^{2}+\\langle \\nabla _{b}\\varphi ,\\nabla _{b}\\Delta_{b}\\varphi \\rangle \\\\ & & +[2Ric-(n-2)Tor]((\\nabla _{b}\\varphi )_{\\mathbb{C}},(\\nabla _{b}\\varphi)_{\\mathbb{C}})+2\\langle J\\nabla _{b}\\varphi ,\\nabla _{b}\\varphi _{0}\\rangle,\\end{array}",
+    "expected": "\\begin{array}{lll} \\frac{1}{2}\\Delta_b|\\nabla_b\\varphi|^2 & = & |\\nabla_b^2\\varphi|^2 + \\langle \\nabla_b\\varphi, \\nabla_b \\Delta_b\\varphi \\rangle \\\\ & & + [2\\text{Ric} - (n - 2)\\text{Tor}]((\\nabla_b\\varphi)_\\mathbb{C}, (\\nabla_b\\varphi)_\\mathbb{C}) + 2\\langle J\\nabla_b\\varphi, \\nabla_b\\varphi_0 \\rangle \\end{array}"
+  },
+  {
+    "case": "dollar_lines",
+    "file": "few_shot-n100-p0-seedNone-revFalse.jsonl",
+    "row_index": 41,
+    "id": "val-6f950b329ba954e306cb800f",
+    "raw": "$\\bar{L}_{ab} = N_{ab}$,  \n$\\bar{N}_{ab} = L_{ab}$.",
+    "pred": "$\\bar{L}_{ab} = N_{ab}$,  \n$\\bar{N}_{ab} = L_{ab}$.",
+    "extracted": "\\bar{L}_{ab} = N_{ab}",
+    "target": "\\bar{L}_{ab} =N_{ab} , \\qquad \\bar{N}_{ab} = L_{ab}",
+    "expected": "\\bar{L}_{ab} = N_{ab} \\bar{N}_{ab} = L_{ab}"
+  },
+  {
+    "case": "explanation",
+    "file": "zero_shot-n100-p0-seedNone-revFalse.jsonl",
+    "row_index": 1,
+    "id": "val-2d04028103a6e1bc07394149",
+    "raw": "The OCR errors in the LaTeX formula have been corrected as follows:\n\n$$\nT(S;\\nu^{-1})f = [(\\zeta \\circ \\nu^{-1}) \\cdot t S((\\zeta \\circ \\nu^{-1})) \\cdot (f \\circ \\nu^{-1})] \\circ \\nu\n$$\n\n$$\n= \\nu^* \\circ (\\zeta \\circ \\nu^{-1}) \\cdot S \\circ \\nu^{-1,*} \\cdot \\zeta \\cdot f\n$$\n\nLet me know if you need further assistance!",
+    "pred": "The OCR errors in the LaTeX formula have been corrected as follows:\n\n$$\nT(S;\\nu^{-1})f = [(\\zeta \\circ \\nu^{-1}) \\cdot t S((\\zeta \\circ \\nu^{-1})) \\cdot (f \\circ \\nu^{-1})] \\circ \\nu\n$$\n\n$$\n= \\nu^* \\circ (\\zeta \\circ \\nu^{-1}) \\cdot S \\circ \\nu^{-1,*} \\cdot \\zeta \\cdot f\n$$\n\nLet me know if you need further assistance!",
+    "extracted": "T(S;\\nu^{-1})f = [(\\zeta \\circ \\nu^{-1}) \\cdot t S((\\zeta \\circ \\nu^{-1})) \\cdot (f \\circ \\nu^{-1})] \\circ \\nu",
+    "target": "T(S;\\nu^{-1})f&:=[(\\zeta\\circ\\nu^{-1})\\cdot S((\\zeta\\circ\\nu^{-1})\\cdot(f\\circ\\nu^{-1}))]\\circ\\nu\\\\ &=\\nu^*\\circ (\\zeta\\circ\\nu^{-1})\\cdot S\\circ \\nu^{-1,*}\\zeta\\cdot f.",
+    "expected": "T(S;\\nu^{-1})f = [(\\zeta \\circ \\nu^{-1}) \\cdot t S((\\zeta \\circ \\nu^{-1})) \\cdot (f \\circ \\nu^{-1})] \\circ \\nu"
+  }
+]
