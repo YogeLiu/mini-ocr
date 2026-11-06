@@ -17,7 +17,10 @@ export default defineConfig({
       locales: { root: { label: '简体中文', lang: 'zh-CN' } },
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/YogeLiu/mini-ocr' }],
       sidebar,
-      components: { PageTitle: './src/components/PageTitle.astro' },
+      components: {
+        PageTitle: './src/components/PageTitle.astro',
+        Header: './src/components/Header.astro',
+      },
       customCss: ['./src/styles/reading.css'],
       pagination: true,
       head: [{ tag: 'script', content: "addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.id='read-progress';document.body.appendChild(b);const u=()=>{const h=document.documentElement;b.style.width=(h.scrollTop/Math.max(1,h.scrollHeight-h.clientHeight)*100)+'%'};addEventListener('scroll',u,{passive:true});u()})" }],

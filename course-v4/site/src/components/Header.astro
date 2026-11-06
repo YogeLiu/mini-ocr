@@ -1,0 +1,57 @@
+---
+import DefaultHeader from '@astrojs/starlight/components/Header.astro';
+
+const { hasSidebar } = Astro.locals.starlightRoute;
+---
+
+<script is:inline>
+  try {
+    document.documentElement.toggleAttribute(
+      'data-sidebar-collapsed',
+      localStorage.getItem('mini-ocr-sidebar-collapsed') === 'true'
+    );
+  } catch { /* Keep the default expanded state if storage is unavailable. */ }
+</script>
+
+<div class="course-header">
+  {hasSidebar && (
+    <button
+      id="course-sidebar-toggle"
+      type="button"
+      aria-controls="starlight__sidebar"
+      aria-expanded="true"
+      aria-label="收起目录"
+      title="收起目录"
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M9 4v16m6-12-3 4 3 4" />
+      </svg>
+    </button>
+  )}
+  <div class="course-default-header"><DefaultHeader /></div>
+</div>
+
+<script>
+  function setupSidebarToggle() {
+    const button = document.querySelector<HTMLButtonElement>('#course-sidebar-toggle');
+    if (!button) return;
+    const root = document.documentElement;
+    function updateButton() {
+      const expanded = !root.hasAttribute('data-sidebar-collapsed');
+      button!.setAttribute('aria-expanded', String(expanded));
+      button!.setAttribute('aria-label', expanded ? '收起目录' : '展开目录');
+      button!.title = expanded ? '收起目录' : '展开目录';
+    }
+    updateButton();
+    button.onclick = () => {
+      const collapsed = root.toggleAttribute('data-sidebar-collapsed');
+      try {
+        localStorage.setItem('mini-ocr-sidebar-collapsed', String(collapsed));
+      } catch { /* Toggling still works when storage is unavailable. */ }
+      updateButton();
+    };
+  }
+  setupSidebarToggle();
+  document.addEventListener('astro:page-load', setupSidebarToggle);
+</script>
