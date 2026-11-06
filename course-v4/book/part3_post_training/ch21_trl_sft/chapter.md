@@ -1,4 +1,4 @@
-# 第 21 章　用 TRL 做 SFT 实验
+# 第 21 章 用 TRL 做 SFT 实验
 
 ## 本章导读
 
@@ -15,11 +15,11 @@
 3. 保存 adapter 和完整配置，让别人（或一个月后的你）能复现。
 4. 在固定 val 上比较微调前后，解释为什么训练 loss 一路下降而 val 指标在中途就停了。
 
-**和前面章节的关系。** 本章不引入新的数学：label mask 和 EOS 来自第 19 章，LoRA 的公式和参数量来自第 20 章，评测脚本和提示基线来自第 18 章。本章的新东西是"怎样确认框架做的就是你学过的那件事"。
+**和前面章节的关系。** 本章不引入新的数学：label mask 和 EOS 来自第 19 章，LoRA 的公式和参数量来自第 20 章，评测脚本和提示基线来自第 18 章。本章新学的是怎样确认框架做的就是你学过的那件事。
 
 **和作业、项目的关系。** 本章的实验是作业 A3 的**训练层**：OCR 后纠错在验证集上超过提示基线（门槛待校准）。它也是项目报告 R2 结果表里 **TRL LoRA** 那一行（第 18 章填提示基线，第 19、20 章填全参 SFT 和自写 LoRA）。
 
-**怎样读。** 21.1–21.2 节搭骨架；21.3–21.9 节每节讲清单上的一项；21.10 节把本章结果和第 18–20 章放在一起比；21.11 节概括 TRL 的其他参数。动手步骤都在 lab.md 里，正文只引用 lab 的部分号。
+**怎样读。** 21.1 到 21.2 节搭骨架；21.3 到 21.9 节每节讲清单上的一项；21.10 节把本章结果和第 18 到 20 章放在一起比；21.11 节概括 TRL 的其他参数。动手步骤都在 lab.md 里，正文只引用 lab 的部分号。
 
 ---
 
@@ -27,11 +27,11 @@
 
 ### 21.1.1 自写循环做到了什么，框架多给了什么
 
-第 19、20 章的自写代码已经能训练，那为什么还要换 TRL？因为一个能长期用的训练实验还需要很多"周边"：
+第 19、20 章的自写代码已经能训练，那为什么还要换 TRL？因为一个能长期用的训练实验还需要很多周边功能：
 
 - 断点保存与恢复、日志、回调（每隔多少步做点事）；
 - 混合精度、梯度检查点、多卡并行；
-- 各种数据格式（纯文本、对话、prompt–completion）的自动处理；
+- 各种数据格式（纯文本、对话、prompt-completion）的自动处理；
 - 和 PEFT、transformers 的版本配套。
 
 这些自己写也能写，但每一样都要调试。TRL 把它们包好了，而且整个社区都在用，出了问题容易查到。
@@ -56,17 +56,21 @@
 
 下面这张表是本章的地图。每一行是一节，"证据"一列写的是结果存在哪个文件里。
 
-| 检查项 | 查什么 | 证据（tour 输出文件） | 节 |
+| 检查项 | 怎么查，什么算通过 | 证据（tour 输出文件） | 节 |
 |---|---|---|---|
-| 第一批 token 与 label | 亲眼看真正送进模型的东西 | `first-batch.json`、`training-first-batch.json` | 21.3 |
-| completion-only 生效 | 看 labels，不看开关 | 同上 + `audit_batch` 的断言 | 21.4 |
-| 可训练参数 | 个数等于公式，名字全是 `lora_` | `trainable-parameters.json` | 21.5 |
-| loss 计算方式 | 与自写 `causal_loss` 对拍 loss、梯度、一次更新 | `part2.json` 的 `parity` | 21.6 |
-| 保存与复现 | 重载后逐条输出一致 | `reload-verified.json`、`environment-*.json` | 21.7 |
-| 固定 val 上比较 | 同一批题、同一脚本、同一解码 | `stages.json`、`*-val-metrics.json` | 21.8 |
-| loss 降 ≠ 变好 | 固定探针上看 train 与 val 分叉 | `stages.json`、`trainer-history.json` | 21.9 |
+| 第一批 token 与 label | 从 `trainer.get_train_dataloader()` 取一批，逐位置打印 id、token、label、attention；提示和 pad 的 label 是 −100，答案和末尾 EOS 的 label 等于自己的 id | `first-batch.json`、`training-first-batch.json` | 21.3 |
+| completion-only 生效 | 不看开关，看 labels：第一个监督位置等于提示长度，每条的监督数等于答案 token 数（含 EOS），提示监督数是 0 | 同上 + `audit_batch` 的断言 | 21.4 |
+| 可训练参数 | 从 `trainer.model` 数 `requires_grad` 的参数：个数等于 Σ r × (in + out)，名字全部含 `lora_` | `trainable-parameters.json` | 21.5 |
+| loss 计算方式 | 同一模型、同一批数据，TRL 和自写 `causal_loss` 各算一遍，loss、梯度、一步更新后的参数在容差内相等，且参数真的动了 | `part2.json` 的 `parity` | 21.6 |
+| 保存与复现 | 重载 adapter，用完全相同的生成设置在同一批 val 上重新生成，逐条输出相同 | `reload-verified.json`、`environment-*.json` | 21.7 |
+| 固定 val 上比较 | 微调前后用同一批题、同一评测脚本、同一解码和精度，选择规则在跑之前写好 | `stages.json`、`*-val-metrics.json` | 21.8 |
+| loss 降 ≠ 变好 | 每隔固定步数在固定的 train 探针和 val 上算 NLL，和 val EM 分开画，看 train 与 val 是否分叉 | `stages.json`、`trainer-history.json` | 21.9 |
 
-前四项在训练**之前**做（lab 第 1、2 部分），后三项在训练**之后**做（lab 第 3–6 部分）。数据和 loss 没确认之前，跑出来的分数不能信。
+前四项在训练**之前**做（lab 第 1、2 部分），后三项在训练**之后**做（lab 第 3 到 6 部分）。数据和 loss 没确认之前，跑出来的分数不能信。
+
+每一项的思路都一样：查框架处理之后的对象（dataloader 吐出的 batch、`trainer.model`、重载后的模型），而不是你传进去的那个；拿它和一个独立的参照比（第 19 章的编码、第 20 章的公式、自写的 loss、保存前的输出）；把比较写成断言，不靠肉眼。
+
+学习率调度和训练日志不单列一项，但也要看：调度器类型和 warmup 在 21.2.4 节的配置表里核对，实际用的学习率和日志 loss 的含义在 21.6.6 节核对。
 
 ---
 
@@ -99,7 +103,7 @@ SFTTrainer(model=model, args=config, processing_class=tokenizer,
 
 ### 21.2.2 把第 19 章的数据交给框架
 
-TRL 能吃好几种数据格式。最省事的是直接给"prompt + completion"两段文字，让 TRL 自己套模板、分词、做 mask。本章**故意不这样做**，而是把第 19 章 `encode_sft` 已经编码好的 `input_ids` 和 `labels` 直接交给它：
+TRL 能吃好几种数据格式。最省事的是直接给 prompt 和 completion 两段文字，让 TRL 自己套模板、分词、做 mask。本章**故意不这样做**，而是把第 19 章 `encode_sft` 已经编码好的 `input_ids` 和 `labels` 直接交给它：
 
 ```python
 def dataset_rows(examples):
@@ -116,15 +120,15 @@ def dataset_rows(examples):
 
 为什么这样做？理由有三：
 
-1. **模板只有一个来源。** 第 18–20 章的评测用的就是 `encode_sft` 背后的那个非思考模板。训练也用它，训练和推理就不可能对不上。
+1. **模板只有一个来源。** 第 18 到 20 章的评测用的就是 `encode_sft` 背后的那个非思考模板。训练也用它，训练和推理就不可能对不上。
 2. **mask 由你负责，而且你已经测过。** 第 19 章的 `encode_sft` 有完整的测试（联合编码、核对前缀边界、EOS）。让框架再做一遍，就多了一个需要核对的实现。
 3. **对拍才有意义。** 21.6 节要拿 TRL 的 loss 和自写 `causal_loss` 比。两边吃的是同一批 `input_ids/labels`，比的才是 loss 本身。
 
 `dataset_rows` 只做一件事：格式转换。它调用 `collate_sft([ex], 0)` 借用第 19 章已有的合同检查（形状一致、不能全是 −100），而不是自己再写一遍 mask 逻辑。这是练习 21.1 的一部分。
 
-还有两个配置是这个选择的"配套"：
+这个选择还需要两个配置配合：
 
-- `max_length=None`：第 19 章的 `encode_sft` 已经把超过 384 个 token 的样本**整条拒收**了，不需要框架再截断。（截断会砍掉答案结尾的 EOS，第 19 章 19.6.4 节讲过。）
+- `max_length=None`：第 19 章的 `encode_sft` 已经把超过 384 个 token 的样本**整条拒收**了，不需要框架再截断。截断会砍掉答案结尾的 EOS，第 19 章 19.6.4 节讲过。
 - `remove_unused_columns=False`：别让 Trainer 按模型 `forward` 的签名删列，`labels` 列必须留着。
 
 ### 21.2.3 实验设置
@@ -148,7 +152,7 @@ def dataset_rows(examples):
 | 用途 | 字段 | 本章取值 | 为什么 |
 |---|---|---|---|
 | 训练量 | `max_steps`、`per_device_train_batch_size`、`gradient_accumulation_steps` | 800、2、4 | 有 `max_steps` 时，`num_train_epochs`（文件里是默认的 3.0）不起作用 |
-| 优化 | `learning_rate`、`lr_scheduler_type`、`warmup_steps`、`weight_decay`、`optim` | 2e-4、constant、0、0.01、adamw_torch | 和第 20 章一致，便于比较 |
+| 优化 | `learning_rate`、`lr_scheduler_type`、`warmup_steps`、`weight_decay`、`optim` | 2e-4、constant、0、0.01、adamw_torch | 和第 20 章一致，便于比较。调度不设时默认是 `linear`，见 21.6.6 节 |
 | 精度 | `bf16`、`fp16` | True、False | 权重仍是 FP32，计算走 bf16 autocast |
 | 省显存 | `gradient_checkpointing` | True（`use_reentrant=False`） | 用算力换激活显存 |
 | 数据 | `max_length`、`packing`、`padding_free`、`skip_prepare_dataset`、`remove_unused_columns` | None、False、False、True、False | 21.2.2 节 |
@@ -185,7 +189,7 @@ def dataset_rows(examples):
 
 主实验正式训练的第一批有 2 条样本，补齐到 263 个位置（本项目观察，主实验，`training-first-batch.json`）。
 
-**第 1 条**是一条无错样本：带噪输入和目标完全相同，模型要学的是"原样抄回来"。它的真实长度是 231，后面补了 32 个 pad。把位置 122–130 和末尾几个位置摘出来：
+**第 1 条**是一条无错样本：带噪输入和目标完全相同，模型要学的是原样抄回来。它的真实长度是 231，后面补了 32 个 pad。把位置 122 到 130 和末尾几个位置摘出来：
 
 | 位置 | token | label | attention |
 |---:|---|---:|---:|
@@ -204,10 +208,10 @@ def dataset_rows(examples):
 
 读这张表：
 
-- 位置 0–127 是提示：system 消息 "Correct OCR errors in the following LaTeX formula."、user 消息里的带噪公式、`assistant` 开头，以及非思考模板自动加的空思考块 `<think>\n\n</think>\n\n`。全部 −100。
+- 位置 0 到 127 是提示：system 消息 "Correct OCR errors in the following LaTeX formula."、user 消息里的带噪公式、`assistant` 开头，以及非思考模板自动加的空思考块 `<think>\n\n</think>\n\n`。全部 −100。
 - 位置 128 是答案的第一个 token `P`，label 就是它自己的 id 47。**label 不预先移位**：第 19 章 19.3.3 节说过，移位在 loss 函数里做一次。
-- 位置 230 是 `<|im_end|>`，id 151645，这就是 Qwen3 对话模板里的 EOS。它被监督了，模型才学得会"写完就停"。
-- 位置 231 起是 pad。Qwen3 的 pad 是 `<|endoftext|>`（id 151643），和 EOS 不是同一个 token，所以"屏蔽 pad"不会误伤 EOS（第 19 章 19.5.3 节的陷阱这里不存在）。
+- 位置 230 是 `<|im_end|>`，id 151645，这就是 Qwen3 对话模板里的 EOS。它被监督了，模型才学得会写完就停。
+- 位置 231 起是 pad。Qwen3 的 pad 是 `<|endoftext|>`（id 151643），和 EOS 不是同一个 token，所以屏蔽 pad 不会误伤 EOS（第 19 章 19.5.3 节的陷阱这里不存在）。
 
 **第 2 条**是一条有错样本，真实长度正好 263，没有 pad。答案从位置 140 开始，到位置 262 的 `<|im_end|>` 结束。对比输入和答案能看到两处错：带噪输入里 `\frac{1}` 后面少了分母，目标是 `\frac{1}{Q(D,x)-P(x)}`；带噪输入里的 `\frac{l}{n}`，目标是 `\frac{1}{n}`。
 
@@ -215,7 +219,7 @@ def dataset_rows(examples):
 
 ### 21.3.4 对照代码：`audit_batch`
 
-把"用眼睛看"变成断言，就是 `audit_batch`（`miniocr/train/trl_sft.py`，练习 21.1）。逐行看它查了什么：
+把用眼睛看的那几条写成断言，就是 `audit_batch`（`miniocr/train/trl_sft.py`，练习 21.1）。逐行看它查了什么：
 
 ```python
 ids, labels, attention = (batch[k].cpu() for k in ('input_ids', 'labels', 'attention_mask'))
@@ -224,7 +228,7 @@ assert (labels[attention == 0] == -100).all()                 # pad 不监督
 assert torch.equal(ids[labels != -100], labels[labels != -100])  # 监督位置 label == id，没有错位
 ```
 
-第三个断言能抓住"label 错一位"：如果有人把 labels 预先左移了一位，监督位置上的 label 就会等于**下一个** token 的 id，和 input_id 对不上。
+第三个断言能抓住 label 错一位：如果有人把 labels 预先左移了一位，监督位置上的 label 就会等于**下一个** token 的 id，和 input_id 对不上。
 
 接下来逐行和第 19 章编码的原样本对照：
 
@@ -273,32 +277,32 @@ tour 的第 2 部分还多做了一步：用同样的两条样本，分别经过
 
 ### 21.4.1 开关不等于效果
 
-`SFTConfig` 里有一个开关 `completion_only_loss=True`，字面意思是"只在 completion（答案）上算 loss"。很多人打开它就放心了。可开关只表明意图，completion-only 是否生效，要看送进模型的 labels。
+`SFTConfig` 里有一个开关 `completion_only_loss=True`，字面意思是只在 completion（答案）上算 loss。很多人打开它就放心了。可开关只表明意图，completion-only 是否生效，要看送进模型的 labels。
 
 ### 21.4.2 这个版本里，开关到底管什么
 
 我们读了实例上安装的 TRL 1.15.0 源码（`trl/trainer/sft_trainer.py`），并对照它的文档字符串。在纯文本 SFT 这条路径上，labels 的来源是这样定的：
 
 1. 如果数据集里**已经有 `labels` 列**，原样使用。
-2. 如果没有，就在"准备数据集"阶段从 `completion_mask` 和 `assistant_masks` 列构造：被这些 mask 标为 0 的位置设为 −100。`completion_mask` **只在 `completion_only_loss=True` 时**才参与。
+2. 如果没有，就在准备数据集阶段从 `completion_mask` 和 `assistant_masks` 列构造：被这些 mask 标为 0 的位置设为 −100。`completion_mask` **只在 `completion_only_loss=True` 时**才参与。
 3. 如果这些列都没有，labels 默认等于 `input_ids`，也就是**整条序列都计 loss**。
 4. 设了 `skip_prepare_dataset=True` 时，第 2 步整个跳过，也不做截断；collator 只按原样补齐 labels（用 −100 补）。
 
-把本章的数据路径代进去：我们有 `labels` 列，又跳过了准备阶段，所以走的是第 1 条。**`completion_only_loss=True` 在本章根本没被用到。** 它留在配置里只是表明意图；保证"只学答案"的，是第 19 章 `encode_sft` 写好的 labels。
+把本章的数据路径代进去：我们有 `labels` 列，又跳过了准备阶段，所以走的是第 1 条。**`completion_only_loss=True` 在本章根本没被用到。** 它留在配置里只是表明意图，保证只学答案的，是第 19 章 `encode_sft` 写好的 labels。
 
-这一版还有一个保护：如果你跳过了准备阶段，数据里却只有 `completion_mask` 而没有 `labels`，TRL 会直接报错，提示"会在整条序列上训练"。但如果你连 `completion_mask` 也没给，只给了 `input_ids`，它不会报错，labels 就等于 `input_ids`——提示被悄悄监督了。
+这一版还有一个保护：如果你跳过了准备阶段，数据里却只有 `completion_mask` 而没有 `labels`，TRL 会直接报错，提示"会在整条序列上训练"。但如果你连 `completion_mask` 也没给，只给了 `input_ids`，它不会报错，labels 就等于 `input_ids`，提示被悄悄监督了。
 
 这些行为都是**版本相关**的。源码注释里就写着，构造 labels 的逻辑是从 collator 挪到数据准备阶段的；换一个版本，同样的配置可能走另一条路。所以：按你安装的版本查文档和源码，然后**用第一批数据验证**。
 
-### 21.4.4 怎样查：主实验的第一批
+### 21.4.3 怎样查：主实验的第一批
 
 查三个数：`audit_batch` 输出里的 `active[0]`（第一个被监督的位置）是否等于提示长度；每条样本被监督的 token 数是否等于答案的 token 数（含 EOS）；提示部分被监督的 token 数，应当是 0。
 
 主实验第一批第 1 条：提示长度 128，答案（含 EOS）103 个 token，第一个被监督的位置正好是 128，监督数正好 103；第 2 条：提示长度 140，第一个监督位置 140，监督 123 个（本项目观察，主实验，`training-first-batch.json`）。提示部分被监督的 token 数是 0。
 
-如果 completion-only 没生效，会是什么样？那第 1 条的监督数会变成 230（231 个位置减去位置 0，数学结论），其中 127 个属于提示。21.3.3 节那张表里，位置 0–127 的 label 列会变成各自的 token id，而不是 −100。一眼就能看出来。
+如果 completion-only 没生效，会是什么样？那第 1 条的监督数会变成 230（231 个位置减去位置 0，数学结论），其中 127 个属于提示。21.3.3 节那张表里，位置 0 到 127 的 label 列会变成各自的 token id，而不是 −100。一眼就能看出来。
 
-### 21.4.5 对照代码
+### 21.4.4 对照代码
 
 `audit_batch` 里专门查这一项的是两句：
 
@@ -307,15 +311,15 @@ assert int(active[0]) == reference.prompt_length
 assert labels[i, :end+1].tolist() == list(reference.labels)
 ```
 
-第一句查答案起点；第二句更严格，要求整行 labels 和第 19 章编码时完全一致。返回值里的 `completion_only=True` 只有在所有断言都通过后才会出现——它不是从配置里抄来的。
+第一句查答案起点；第二句更严格，要求整行 labels 和第 19 章编码时完全一致。返回值里的 `completion_only=True` 只有在所有断言都通过后才会出现，它不是从配置里抄来的。
 
-测试 `test_ch21_collation_masks_eos_and_padding` 做了两次"故意弄坏"：把提示位置的 label 改成一个 token id（模拟提示被监督），再把末尾 EOS 的 label 改成 −100（模拟 EOS 没被监督），两次都要求 `audit_batch` 抛出 `AssertionError`。一个检查只在"能抓住错误"时才有用，所以要拿坏数据测它。
+测试 `test_ch21_collation_masks_eos_and_padding` 故意弄坏了两次：把提示位置的 label 改成一个 token id（模拟提示被监督），再把末尾 EOS 的 label 改成 −100（模拟 EOS 没被监督），两次都要求 `audit_batch` 抛出 `AssertionError`。一个检查只有在能抓住错误时才有用，所以要拿坏数据测它。
 
-### 21.4.6 会出什么错
+### 21.4.5 会出什么错
 
 | 错误 | 现象 | 怎样发现 |
 |---|---|---|
-| 只设了 `completion_only_loss=True`，数据只有 `input_ids` 又跳过准备 | 提示被监督；训练 loss 一开始就很低（提示几乎是固定模板，容易预测） | 第一批的提示位置 label 不是 −100 |
+| 只设了 `completion_only_loss=True`，数据只有 `input_ids` 又跳过准备 | 提示被监督，训练照样跑；训练 loss 可能变高也可能变低，方向取决于提示有多难预测（第 19 章 19.9.3 节），不能据此判断 mask 对不对 | 第一批的提示位置 label 不是 −100 |
 | 换了 TRL 版本，labels 的构造路径变了 | 同一份配置，监督 token 数变了 | 每次升级后重跑 tour 第 2 部分，比较 `supervised_tokens` |
 | 让 TRL 自己套模板，模板和评测不同 | 训练 loss 正常，生成时格式异常 | 把训练第一批的文字和评测时 `render_chat` 的输出对比 |
 | 答案起点算错一个 token（例如把 `ĊĊ` 也算进答案） | EM 下降不多，但输出开头常多一个换行 | `active[0]` 与 `prompt_length` 对比 |
@@ -370,9 +374,9 @@ def counts(model):
 assert all('lora_' in n for n in result['parameters']['names'])
 ```
 
-只看个数是不够的。比如有人把 `lm_head` 也设成可训练（PEFT 的 `modules_to_save` 可以做到），个数会多出一大截，但"多了多少"要你自己去算；看名字一眼就知道。
+只看个数是不够的。比如有人把 `lm_head` 也设成可训练（PEFT 的 `modules_to_save` 可以做到），个数会多出一大截，但光看个数，要自己算一遍才知道多出的是哪些参数，看名字一眼就知道。
 
-测试 `test_ch21_trainer_update_and_adapter_reload` 还查了另一面：训练一步以后，所有**冻结**参数和训练前**逐位相同**（`atol=0, rtol=0`），而至少一个可训练参数变了。"冻住"不能只看 `requires_grad`，要看值有没有动。
+测试 `test_ch21_trainer_update_and_adapter_reload` 还查了另一面：训练一步以后，所有**冻结**参数和训练前**逐位相同**（`atol=0, rtol=0`），而至少一个可训练参数变了。判断冻没冻住，不能只看 `requires_grad`，要看值有没有动。
 
 ### 21.5.5 会出什么错
 
@@ -385,15 +389,15 @@ assert all('lora_' in n for n in result['parameters']['names'])
 
 ---
 
-## 21.6 检查四：loss 怎样算——与自写循环对拍
+## 21.6 检查四：loss 怎样算，与自写循环对拍
 
 ### 21.6.1 为什么要对拍
 
-前三项查的是"数据对不对"。这一项查的是"框架拿到数据以后，算的是不是你以为的那个 loss"。可能的差别有三处：
+前三项查的是数据对不对。这一项查的是框架拿到数据以后，算的是不是你以为的那个 loss。可能的差别有三处：
 
 1. **移位**：位置 t 的 logits 预测位置 t+1 的 label，移没移、移了几次。
 2. **分母**：一次更新有好几个 microbatch，loss 除以什么。
-3. **实现**：这一版 TRL 在 CUDA 上用一个"融合 LM head"算 loss，不走普通的 logits → 交叉熵。
+3. **实现**：这一版 TRL 在 CUDA 上用一个融合 LM head（fused LM head）算 loss，不走普通的 logits → 交叉熵。
 
 最可靠的验证是**对拍**：同一个模型、同一批数据，一边用 TRL 算，一边用第 19 章的 `causal_loss` 算，比 loss、比梯度、再比一次优化器更新。
 
@@ -405,20 +409,20 @@ assert all('lora_' in n for n in result['parameters']['names'])
 
 而不是 (S₁/n₁ + S₂/n₂ + …) / K（"平均的平均"）。
 
-transformers 的 `Trainer` 是这样实现的：开始一次更新前，先把这次要用的 K 个 microbatch 都取出来，数出总监督 token 数 N（按 `labels[..., 1:] != -100` 数，位置 0 不算），作为 `num_items_in_batch` 传给每个 microbatch 的 `compute_loss`。每个 microbatch 算 S_k / N 并反向传播。K 次反向的梯度相加，正好是上面那个公式的梯度（数学结论：求导是线性的）。
+transformers 的 `Trainer` 是这样实现的：开始一次更新前，先把这次要用的 K 个 microbatch 都取出来，数出总监督 token 数 N（按 `labels[..., 1:] != -100` 数，位置 0 不算），作为 `num_items_in_batch` 传给每个 microbatch 的 `compute_loss`。每个 microbatch 算 S_k / N 并反向传播。K 次反向的梯度相加，正好是上面那个公式的梯度（数学结论：求导是线性的）。这一步成立，靠的是 N 在取数据时就数好了，是一个和参数无关的常数，所以 ∇(S₁/N) + ∇(S₂/N) + … = ∇((S₁ + S₂ + …)/N)。如果每个 microbatch 各除各的 n_k，加起来就不再是这个式子。
 
 **一个手算例子。** 用 tour 第 1 部分的两条微型样本：第 1 条 labels 是 (−100, −100, 5, 1)，第 2 条是 (−100, −100, 7, 8, 9, 1)。按 `labels[1:]` 数，各有 2 个和 4 个监督 token，N = 6。假设两条的 token 损失之和分别是 S₁ = 1.0、S₂ = 4.0（假设的数字，只为演示）：
 
 - 按 token 加权：(1.0 + 4.0) / 6 ≈ 0.833。
 - 平均的平均：(1.0/2 + 4.0/4) / 2 = (0.5 + 1.0) / 2 = 0.75。
 
-两者不同。"平均的平均"让短样本的每个 token 权重变成 1/4，长样本的每个 token 只有 1/8。后纠错的答案长短差很多（主实验第一批就是 103 对 123 个），所以这个差别是真实存在的。
+两者不同。按 token 加权时每个 token 的权重都是 1/6，平均的平均却让短样本的每个 token 权重变成 1/4，长样本的每个 token 只有 1/8。后纠错的答案长短差很多（主实验第一批就是 103 对 123 个），所以这个差别是真实存在的。
 
 ### 21.6.3 实现：融合 LM head
 
 普通的做法是：模型输出整张 logits（batch × 长度 × 词表），再算交叉熵。Qwen3 的词表有 151,936 个 token（第 19 章 19.7.5 节），整张 logits 很占显存。
 
-TRL 1.15 的 `SFTTrainer` 在建 trainer 时给模型装了一个"融合 LM head"（源码里的 `add_fused_lm_head`）。训练时它只对 **label 不是 −100 的位置**分块投影到词表，直接返回每个位置的 log 概率，不生成整张 logits。然后：
+TRL 1.15 的 `SFTTrainer` 在建 trainer 时给模型装了一个融合 LM head（源码里的 `add_fused_lm_head`）。训练时它只对 **label 不是 −100 的位置**分块投影到词表，直接返回每个位置的 log 概率，不生成整张 logits。然后：
 
 ```python
 per_token_loss = -outputs.log_probs  # zero on ignored positions
@@ -428,7 +432,7 @@ loss = per_token_loss.sum() / torch.as_tensor(num_tokens).clamp(min=1)
 
 （摘自安装的 `trl/trainer/sft_trainer.py` 的 `compute_loss`。）这就是 21.6.2 节的 S_k / N。
 
-融合 head 的计算顺序和"先算完整 logits"不同，浮点舍入会有微小差别。所以对拍要设容差，不要求逐位相同。
+融合 head 的计算顺序和先算完整 logits 不同，浮点舍入会有微小差别。所以对拍要设容差，不要求逐位相同。
 
 这个实现依赖 Triton，**只在 CUDA 上能用**。本章代码在 CPU/MPS 上用一个 `SFTTrainer` 子类，只把 `compute_loss` 换回 transformers 原生的 causal LM loss（同样接收 `num_items_in_batch`），数据、优化器和训练循环仍由 TRL/Trainer 管。所以，**在本地 CPU 上跑通的对拍，验证的不是 GPU 上的融合 loss**，融合 loss 的对拍必须在 CUDA 上做。
 
@@ -440,12 +444,12 @@ loss = per_token_loss.sum() / torch.as_tensor(num_tokens).clamp(min=1)
 2. **TRL 一侧**：对每个 microbatch 调 `trainer.compute_loss(model, b, num_items_in_batch=N)`，反向；记下 loss 之和与梯度；裁剪梯度到 1；用一个新的 AdamW 走一步；记下更新后的参数。
 3. 把参数恢复到初值。
 4. **自写一侧**：对每个 microbatch 用 `causal_loss(logits, labels, reduction='sum') / N`，其余同上。
-5. 比三样：loss、每个参数的梯度、一步更新后的每个参数。还要求参数真的动了（`max_parameter_delta > 0`），防止"两边都没更新所以相等"。
+5. 比三样：loss、每个参数的梯度、一步更新后的每个参数。还要求参数真的动了（`max_parameter_delta > 0`），防止两边都没更新、所以相等。
 6. 无论成功失败，最后都把参数恢复到初值，不污染后面的正式训练。
 
 还有两处细节：
 
-**为什么要比"一次更新"，不只比梯度？** 因为优化器也是框架行为的一部分，而且 Adam 会放大某些差别。下一段就是例子。
+**为什么要比一次更新，不只比梯度？** 因为优化器也是框架行为的一部分，而且 Adam 会放大某些差别。下一段就是例子。
 
 **为什么对拍时 AdamW 的 eps 用 1e-6，而正式训练是默认的 1e-8？** Adam 的第一步，每个分量的更新大约是 lr × g / (|g| + eps)。|g| 远大于 eps 时，这个比值接近 ±1，对 g 的微小舍入差不敏感；可当某个分量的 g 接近 0 时，融合 head 和完整矩阵乘的一点点舍入差，就可能让比值从 +1 翻到 −1，更新差出 2 × lr（数学结论）。eps 取大一些，能把这些"接近 0 的分量"压住，让对拍比的是有意义的差别。两边用同一个 eps，比较是公平的；但要记住，这是**对拍专用**的设置，不是正式训练的设置。
 
@@ -479,13 +483,14 @@ loss = per_token_loss.sum() / torch.as_tensor(num_tokens).clamp(min=1)
 - "参数最大变化"是 1.0 × 10⁻⁴，正好等于对拍用的学习率。这是 Adam 第一步的特点：更新幅度约等于 lr，和梯度大小无关（数学结论）。它证明两边都**真的更新了**。
 - 真实模型的差比微型模型大。一个可能的原因是词表从 64 变成 151,936、模型有 28 层，分块求和与逐层累积的舍入更多（推测，未单独验证）。两组都在设定的容差（loss 2 × 10⁻⁵）以内。
 
-### 21.6.6 训练日志里的 loss 是什么
+### 21.6.6 训练日志里记的是什么
 
-对拍确认了"每一步优化的是什么"。还要知道"日志里记的是什么"，否则 21.9 节会读错曲线。
+对拍确认了每一步优化的是什么。还要知道日志里记的是什么，否则 21.9 节会读错曲线。
 
 - `Trainer` 每次更新返回的 loss，是上面那个跨 microbatch 的 token 加权平均（各 microbatch 的 S_k / N 相加）。
-- 本章 `logging_steps=10`，`trainer-history.json` 里每 10 步一条，记的是**上次记录以来各步的平均**；`logging_first_step=True` 让第 1 步单独记一条并清空累计值，所以第 10 步那条其实是第 2–10 步共 9 步的平均，从第 20 步起才是完整的 10 步窗口（本项目观察：`trainer-history.json` 前两条的 step 是 1 和 10；`trainer.py` 按 `global_step - _globalstep_last_logged` 相除）。
+- 本章 `logging_steps=10`，`trainer-history.json` 里每 10 步一条，记的是**上次记录以来各步的平均**；`logging_first_step=True` 让第 1 步单独记一条并清空累计值，所以第 10 步那条其实是第 2 到 10 步共 9 步的平均，从第 20 步起才是完整的 10 步窗口（本项目观察：`trainer-history.json` 前两条的 step 是 1 和 10；`trainer.py` 按 `global_step - _globalstep_last_logged` 相除）。
 - 每一步用的是**不同的随机 batch**。所以日志 loss 的起伏，一部分是因为模型在变，一部分只是因为题目在变。
+- 每条记录还带着 `learning_rate` 和 `grad_norm`。`learning_rate` 是核对学习率调度最直接的证据：本章设了 `constant`、warmup 0，所以每条训练记录都应当是 2 × 10⁻⁴。`TrainingArguments` 的 `lr_scheduler_type` 默认是 `linear`（本章用的 transformers 5.19.0），忘了设的话，warmup 为 0 时学习率从 2 × 10⁻⁴ 线性降向 0，到第 400 步前后只剩约一半，训练结束时降到 0（数学结论）。训练照样跑，只是越往后更新越小，和第 20 章的常数学习率也不再可比。`grad_norm` 是记录那一步裁剪前的梯度范数，不是 10 步的平均。它大于裁剪阈值 1，只说明那一步被裁剪了，想知道多少步被裁剪，要逐步统计。
 
 主实验第 1 步的日志 loss 是 0.496，裁剪前梯度范数 9.13；第 800 步那一条是 0.0091（本项目观察，主实验，`trainer-history.json`）。
 
@@ -495,9 +500,10 @@ loss = per_token_loss.sum() / torch.as_tensor(num_tokens).clamp(min=1)
 |---|---|---|
 | 自定义 `compute_loss` 时忽略了 `num_items_in_batch`，每个 microbatch 各自取平均 | token 权重变成"平均的平均"；这一版 `Trainer` 以为 loss 已按总数缩放、不再除以累积步数，于是日志 loss 约放大 K 倍（梯度也约放大 K 倍，但裁剪和 Adam 会掩盖幅度） | 两个监督数不同的 microbatch 对拍，loss 差远超舍入；日志 loss 和 `mean_loss` 差出约 K 倍 |
 | 在 CPU 上对拍通过，就以为 GPU 也对 | GPU 走的是另一个 loss 实现 | 对拍记录里写明设备与是否融合 |
-| 对拍时没恢复参数 | 正式训练从一个"走过一步"的点开始 | 对拍前后保存 state_dict 比较（测试 `test_ch21_fused_loss_gradient_and_adam_parity` 就这样查） |
-| 只比 loss，不比更新 | 梯度符号问题、优化器配置问题漏掉 | 比到"一步更新后的参数" |
+| 对拍时没恢复参数 | 正式训练从一个已经走过一步的点开始 | 对拍前后保存 state_dict 比较（测试 `test_ch21_fused_loss_gradient_and_adam_parity` 就这样查） |
+| 只比 loss，不比更新 | 梯度符号问题、优化器配置问题漏掉 | 比到一步更新后的参数 |
 | 拿对拍用的 eps 去训练 | 实际训练配置和记录不一致 | 正式配置以 `sft-config.json` 为准 |
+| 没设 `lr_scheduler_type` | 学习率按默认的 `linear` 一路降到 0，和常数学习率的实验不可比 | 看 `trainer-history.json` 每条记录的 `learning_rate` |
 
 ---
 
@@ -547,7 +553,7 @@ lab 第 4 部分做这件事：
 
 两点限定：
 
-- **重载是在同一台租用机器上做的。** "换一台机器能复现"本章**没有实测**（待验证）。换 GPU 型号或驱动后，bf16 下的贪心生成可能在个别样本上分叉（待验证）。lab 第 4 节列出了换机器时要带走的东西：整个实验目录里的配置和数据身份文件、对应的基座快照、选中的 `step-*` 目录。
+- **重载是在同一台租用机器上做的。** 换一台机器能不能复现，本章**没有实测**（待验证）。换 GPU 型号或驱动后，bf16 下的贪心生成可能在个别样本上分叉（待验证）。lab 第 4 部分列出了换机器时要带走的东西：整个实验目录里的配置和数据身份文件、对应的基座快照、选中的 `step-*` 目录。
 - **环境文件抓到了一处代码差异。** 训练那次运行（`environment-2-3-4.json`）和重载/测试那次运行（`environment-4-5-6.json`）记录的 `tour.py` 和 `miniocr/train/trl_sft.py` 的 SHA-256 不一样，说明两次之间这两个文件被改过；现在仓库里的版本和后一次一致（本项目观察）。数据、评测、提示、`encode_sft` 等其余 6 个文件的哈希两次相同。重载验证通过，说明这次改动没有影响评测路径；但"用现在的代码从头训练能得到同一个 adapter"并没有被验证过。如果没记代码哈希，这个差异根本发现不了。
 
 ### 21.7.5 对照代码
@@ -590,7 +596,7 @@ for key in ('dtype','seed','n','max_length','max_new_tokens','eval_batch_size'):
 
 ## 21.8 检查六：在固定 val 上比较微调前后
 
-### 21.8.1 "固定"指什么
+### 21.8.1 固定指什么
 
 "微调后比微调前好"这句话，只有在**同一把尺子**上量才成立。第 18 章 18.4 节的流程在这里全部适用，具体到本章：
 
@@ -600,7 +606,7 @@ for key in ('dtype','seed','n','max_length','max_new_tokens','eval_batch_size'):
 - **同一个模型精度**：基线和 SFT 都是 FP32 权重 + bf16 autocast。
 - **事先写好的选择规则**：val 原始 EM_norm 越高越好；同分时 CER 越低越好；再同分选较早的步数。规则写在代码里，跑之前就定了。
 
-"微调前"不止一个。本章在同一批 val 上跑了三个对照：
+微调前的对照不止一个。本章在同一批 val 上跑了三个对照：
 
 - **零样本**：第 18 章的零样本提示，未微调的 Qwen3-0.6B。
 - **严格 3-shot**：第 18 章的"少样本 + 格式约束"提示，3 条示例从 train 用固定种子取出，ID 存在 `few-shot-ids.json`。这是第 18 章最强的提示。
@@ -620,7 +626,7 @@ for key in ('dtype','seed','n','max_length','max_new_tokens','eval_batch_size'):
 | SFT 第 600 步 | 127/200 [0.566, 0.699] | 0.0155 | 6/59 | 74/141 |
 | SFT 第 800 步 | 128/200 [0.571, 0.703] | 0.0195 | 7/59 | 76/141 |
 
-"改坏"是 59 条本来正确的输入里被改错了几条；fix_rate 是 141 条有错输入里被改对了几条（和第 18–20 章的定义相同）。零样本一行和第 20 章同一批 val 上"未微调基座"那一行完全相同（0/200，CER 1.062，第 20 章 20.12.2 节），这本身就是一次小小的复现检查。
+"改坏"是 59 条本来正确的输入里被改错了几条；fix_rate 是 141 条有错输入里被改对了几条（和第 18 到 20 章的定义相同）。零样本一行和第 20 章同一批 val 上"未微调基座"那一行完全相同（0/200，CER 1.062，第 20 章 20.12.2 节），这本身就是一次小小的复现检查。
 
 ### 21.8.3 怎样读
 
@@ -632,7 +638,7 @@ for key in ('dtype','seed','n','max_length','max_new_tokens','eval_batch_size'):
 
 **结论三：四个 checkpoint 的差别在噪声以内。** 四个 EM_norm 是 128、131、127、128 条，最大差 4 条（2 个百分点），而每个区间宽约 0.13。选中第 400 步是因为规则这样定，不是因为它"显著更好"。CER 反而是第 200 步最低。这种情况下，被选中的那个分数天然偏乐观：你是从四个里挑了最高的。
 
-**结论四：要报原始输出，不报抽取后的。** 抽取后的 EM_norm 在四个 checkpoint 上只有 0.20–0.21（`stages.json` 的 `extracted`）。原因是第 18 章的 `extract_formula` 会去掉公式末尾的一个标点，而这批 val 里有 140 条目标以句号、逗号或分号结尾。对第 400 步的逐条输出重新计数：原始输出对、抽取后变错的有 89 条，其中 88 条的目标以这类标点结尾（本项目观察，对 `reloaded-val-predictions.json` 重新计数）。SFT 的输出本来就是一行干净公式，不需要抽取。主指标在跑之前就定为原始输出，两个口径都存下来了，不能看到结果后换成好看的那个。
+**结论四：要报原始输出，不报抽取后的。** 抽取后的 EM_norm 在四个 checkpoint 上只有 0.20 到 0.21（`stages.json` 的 `extracted`）。原因是第 18 章的 `extract_formula` 会去掉公式末尾的一个标点，而这批 val 里有 140 条目标以句号、逗号或分号结尾。对第 400 步的逐条输出重新计数：原始输出对、抽取后变错的有 89 条，其中 88 条的目标以这类标点结尾（本项目观察，对 `reloaded-val-predictions.json` 重新计数）。SFT 的输出本来就是一行干净公式，不需要抽取。主指标在跑之前就定为原始输出，两个口径都存下来了，不能看到结果后换成好看的那个。
 
 ### 21.8.4 test 只评一次
 
@@ -669,11 +675,11 @@ val 0.655，test 0.615。差距在区间之内，方向和 21.8.3 节结论三�
 
 ### 21.9.1 现象
 
-先看主实验的四组数字，放在同一张表里（本项目观察，主实验；日志 loss 来自 `trainer-history.json`，是该步之前 10 步的平均；两个 NLL 来自 `stages.json`）：
+先看主实验的四组数字，放在同一张表里（本项目观察，主实验；日志 loss 来自 `trainer-history.json`，是截至该步的 10 步平均，第 1 步那条只有它自己，见 21.6.6 节；两个 NLL 来自 `stages.json`）：
 
 | 步 | 有效轮数 | 日志 train loss | 固定 train 探针 NLL | val NLL | val EM_norm |
 |---:|---:|---:|---:|---:|---|
-| 1 | 0.004 | 0.496 | — | — | — |
+| 1 | 0.004 | 0.496 | 未测 | 未测 | 未测 |
 | 200 | 0.79 | 0.048 | 0.0208 | 0.0327 | 128/200 |
 | 400 | 1.58 | 0.022 | 0.0091 | **0.0319** | **131/200** |
 | 600 | 2.37 | 0.0089 | 0.0044 | 0.0364 | 127/200 |
@@ -684,9 +690,9 @@ val 0.655，test 0.615。差距在区间之内，方向和 21.8.3 节结论三�
 两件事同时在发生：
 
 - **训练集上一路变好**：固定 train 探针 NLL 从第 200 步的 0.0208 降到第 800 步的 0.0025，降了约 8 倍（数学结论，由表中数字算出）。
-- **val 上在第 400 步就停了**：val NLL 在第 400 步最低（0.0319），之后回升到 0.0364 和 0.0349；val EM_norm 在 127–131 之间晃，没有趋势。
+- **val 上在第 400 步就停了**：val NLL 在第 400 步最低（0.0319），之后回升到 0.0364 和 0.0349；val EM_norm 在 127 到 131 之间晃，没有趋势。
 
-如果你只看训练日志，会以为第 800 步最好。实际上从第 400 步以后，多训的那约 3200 次样本只让模型把训练集背得更熟。`learning-curves.png` 把左边的两条 NLL 曲线和右边的 val EM 分开画，就是为了让这个分叉一眼可见。
+只看训练日志，很容易以为第 800 步最好。实际上从第 400 步以后，多训的那约 3200 次样本只让模型把训练集背得更熟。`learning-curves.png` 把左边的两条 NLL 曲线和右边的 val EM 分开画，就是为了让这个分叉一眼可见。
 
 ### 21.9.2 为什么会这样
 
@@ -694,7 +700,7 @@ val 0.655，test 0.615。差距在区间之内，方向和 21.8.3 节结论三�
 
 具体有三个原因，前两个在第 19 章 19.7.3 节已经见过：
 
-1. **过拟合**：train 只有 2023 条，800 步过了 3 轮多。模型对见过的样本越来越有把握（train 探针 NLL 一直降），对没见过的样本却不再进步，甚至更"自信地犯错"（val NLL 回升）。
+1. **过拟合**：train 只有 2023 条，800 步过了 3 轮多。模型对见过的样本越来越有把握（train 探针 NLL 一直降），对没见过的样本却不再进步，甚至更自信地犯错（val NLL 回升）。
 2. **token 平均 vs 整条对错**：NLL 是每个 token 的平均。一条答案平均六七十个 token，绝大部分是照抄，几乎零损失；决定 EM 的只有改错的那一两个位置。NLL 的小变化和 EM 的变化不一一对应。
 3. **teacher forcing vs 自回归**：NLL 在每一步都喂正确的前文；生成时前面错一步，后面就在错的前文上继续。
 
@@ -725,7 +731,7 @@ train_nll = mean_loss(model, encoded[:min(128,len(encoded))], tok.pad_token_id,
 - **按 val 选 checkpoint，而不是取最后一步**。本章每 200 步存一次 adapter，按事先定好的规则选，选中了第 400 步。
 - **存够中间 checkpoint**。如果只存最后一步，你就只能交第 800 步。
 - **调训练量要在 val 上调**。这次的数据提示：在 2023 条 train 上，1.5 轮左右以后 val 不再改善。想再提高，更可能要靠更多或更好的数据，而不是更多步数（这是对下一步的假设，不是结论，第 22 章会教你怎样从错例里提出这类假设）。
-- **不要拿 test 来判断"是不是过拟合了"**。那是 val 的工作。
+- **不要拿 test 来判断是不是过拟合了**。那是 val 的工作。
 
 > **停下来想一想：** 第 400 步和第 800 步的 val EM 只差 3 条，val NLL 却差了约 9%。如果选择规则换成"val NLL 最低"，会选到哪一步？如果规则换成"CER 最低"呢？为什么选择规则一定要在看结果之前定？
 
@@ -740,7 +746,7 @@ train_nll = mean_loss(model, encoded[:min(128,len(encoded))], tok.pad_token_id,
 
 ---
 
-## 21.10 与第 18–20 章的对比：R2 里的 TRL LoRA 一行
+## 21.10 与第 18 到 20 章的对比：R2 里的 TRL LoRA 一行
 
 ### 21.10.1 同一批题上的七行
 
@@ -753,7 +759,7 @@ train_nll = mean_loss(model, encoded[:min(128,len(encoded))], tok.pad_token_id,
 | 严格 3-shot 提示 | 本章 `strict-3shot-val-metrics.json` | 8/200 = 0.040 | 0.144 | 54/59 | 3/141 |
 | 全参 SFT（第 19 章，第 512 步） | 第 20 章 20.12.2 节 | 155/200 = 0.775 | 0.0114 | 2/59 | 98/141 |
 | 自写 LoRA r64 q,k,v,o（第 20 章选中） | 第 20 章 20.11.2 节 | 134/200 = 0.670 | 0.0136 | 2/59 | 77/141 |
-| 自写 LoRA r16 q,k,v,o（第 20 章） | 第 20 章 20.11.2 节 | 129/200 = 0.645 | 0.0190 | 6/59 | — |
+| 自写 LoRA r16 q,k,v,o（第 20 章） | 第 20 章 20.11.2 节 | 129/200 = 0.645 | 0.0190 | 6/59 | 未记录 |
 | **TRL LoRA r32 q,v（本章第 400 步）** | 本章 `stages.json` | **131/200 = 0.655** | 0.0155 | 7/59 | 79/141 |
 
 全部是本项目观察，RTX 4090（租用），FP32 权重 + bf16 autocast。test 一列只有两行有数：第 20 章选中配置 124/200 = 0.620，本章 123/200 = 0.615；第 19 章没有评 test。
@@ -776,11 +782,11 @@ train_nll = mean_loss(model, encoded[:min(128,len(encoded))], tok.pad_token_id,
 
 所以**这不是一个单变量对照**。"TRL 和自写哪个好"这个问题，这张表回答不了：框架、rank、目标模块、训练集大小、选择方式同时变了。能说的只有：
 
-- **TRL 版本没有做坏。** 它在同一批 val 上的结果（131/200）落在第 20 章六个自写 LoRA 配置的范围里（121–134/200），区间和它们全部重叠。尤其是和参数量完全相同的 r16 q,k,v,o（129/200）相比，只差 2 条。这是"框架做的就是你学过的那件事"的又一个旁证——前提是 21.3–21.6 节的检查都通过了。
+- **TRL 版本没有做坏。** 它在同一批 val 上的结果（131/200）落在第 20 章六个自写 LoRA 配置的范围里（121/200 到 134/200），区间和它们全部重叠。尤其是和参数量完全相同的 r16 q,k,v,o（129/200）相比，只差 2 条。这从结果上旁证了框架做的就是你学过的那件事，前提是 21.3 到 21.6 节的检查都通过了。
 - **全参 SFT 仍然最好**（155/200），但第 20 章 20.12.3 节讲过的混杂因素（训练量、学习率、选择方式）在这里依然存在，而且本章的 train 只有第 19 章的一半。
 - **两次 test 几乎一样**（124 和 123 条），差 1 条，在噪声以内。
 
-想把"框架 vs 自写"比干净，需要固定 train 条数、步数、rank、目标模块和数据顺序，只换训练框架。这是练习里的一道选做题。
+想把框架和自写比干净，需要固定 train 条数、步数、rank、目标模块和数据顺序，只换训练框架。这是练习里的一道选做题。
 
 ### 21.10.3 作业 A3 的训练层
 
@@ -803,12 +809,12 @@ R2 的结果表里，第 18 章填了提示基线，第 19、20 章各填了一�
 
 ## 21.11 TRL 参数概览（概括）
 
-`SFTConfig` 的字段很多，而且每个版本都在变（本章就碰上了"labels 的构造从 collator 挪到数据准备阶段"这样的变化）。不需要背，知道有哪几类、去哪里查就够了。下表按用途分组，只列名字和作用；**具体含义和默认值，请按你安装的版本查 TRL 文档，并在源码里核对。**
+`SFTConfig` 的字段很多，而且每个版本都在变（本章就碰上了 labels 的构造从 collator 挪到数据准备阶段这样的变化）。不需要背，知道有哪几类、去哪里查就够了。下表按用途分组，只列名字和作用；**具体含义和默认值，请按你安装的版本查 TRL 文档，并在源码里核对。**
 
 | 类别 | 代表字段 | 作用 |
 |---|---|---|
 | 继承自 `TrainingArguments` | 学习率、调度、batch、累积、步数/轮数、精度、梯度检查点、保存、日志、种子 | 和 transformers `Trainer` 共用 |
-| 数据格式 | `dataset_text_field`、`dataset_kwargs`、`max_length`、`truncation_mode` | 纯文本、对话、prompt–completion 怎样转成 token |
+| 数据格式 | `dataset_text_field`、`dataset_kwargs`、`max_length`、`truncation_mode` | 纯文本、对话、prompt-completion 怎样转成 token |
 | 打包 | `packing`、`padding_free` | 把多条短样本拼进一行，省掉 pad；会改变注意力的边界，要格外检查 |
 | 监督范围 | `completion_only_loss`、`assistant_only_loss` | 只在答案或助手回合上计 loss；生效与否看 labels |
 | loss 类型 | `loss_type` | 本章是默认的 `nll`；还有其他变体（待验证，本章未用） |
@@ -829,13 +835,13 @@ R2 的结果表里，第 18 章填了提示基线，第 19、20 章各填了一�
 - 在 CPU 上对拍通过，就以为 GPU 上的融合 loss 也对（21.6 节）。
 - 只存 adapter，或者只比汇总分数（21.7 节）。
 - 用 test 挑 checkpoint，或者看了结果再换口径（21.8 节）。
-- 拿训练日志 loss 判断"越训越好"（21.9 节）。
+- 拿训练日志 loss 判断越训越好（21.9 节）。
 
 ---
 
 ## 21.13 和真实框架的对应
 
-本章是"真实框架"本身，所以这一节换个方向：把第 19、20 章自写的部件和 TRL / PEFT / transformers 里做同一件事的部件对应起来（版本 TRL 1.15.0、PEFT 0.21.2、transformers 5.19.0；标"待验证"的是本章没有实测的部分）：
+本章用的就是真实框架，所以这一节换个方向：把第 19、20 章自写的部件和 TRL / PEFT / transformers 里做同一件事的部件对应起来（版本 TRL 1.15.0、PEFT 0.21.2、transformers 5.19.0；标"待验证"的是本章没有实测的部分）：
 
 | 自写（第 19、20 章） | 框架里的对应 | 本章怎样确认 |
 |---|---|---|
@@ -858,12 +864,22 @@ R2 的结果表里，第 18 章填了提示基线，第 19、20 章各填了一�
 
 用 TRL 的 `SFTTrainer` + PEFT 做 LoRA SFT 只要几十行配置，但框架替你做的事出错时，训练照样跑、loss 照样降，所以每一项都要拿证据确认。主实验里，`completion_only_loss` 在这条数据路径上没有起作用，监督范围由你交给它的 labels 决定；CUDA 上的融合 loss 与自写 `causal_loss` 对得上；adapter 重载后 200 条 val 输出逐条一致。在固定的 val 前 200 条上，选中的第 400 步 EM_norm 是 131/200，远超照抄的 73/200 和最强提示的 8/200，代价是改坏 7/59 条无错输入；test 只评一次得 123/200（本项目观察，RTX 4090 租用）。固定 train 探针 NLL 一路降到第 800 步，val 在第 400 步以后不再改善，所以 checkpoint 要按 val 选，不看训练 loss。
 
+复习时抓住下面几条：
+
+- **检查清单的共同做法**：查框架处理之后的对象（dataloader 吐出的 batch、`trainer.model`、重载后的模型），不查你传进去的那个；拿它和独立的参照比；把比较写成断言。七项是：第一批 token 与 label、completion-only、可训练参数、loss 对拍、保存与复现、固定 val 比较、train 与 val 分叉。
+- **数据与 mask**：本章把第 19 章 `encode_sft` 编好的 `input_ids`、`labels` 直接交给 TRL，并设 `skip_prepare_dataset=True`。数据里已有 `labels` 列时 TRL 原样使用，`completion_only_loss` 不起作用；既没有 `labels` 也没有 mask 时，labels 等于 `input_ids`，提示被监督而且不报错。所以要看第一批：提示和 pad 是 −100，第一个监督位置等于提示长度，末尾 EOS 被监督。
+- **可训练参数**：个数 = Σ r × (in + out)，r = 32 挂 q、v 时是 32 × (3072 + 2048) × 28 = 4,587,520；名字个数 = 层数 × 模块数 × 2，名字全部含 `lora_`。总参数包括 LoRA，减掉可训练参数才是基座。
+- **loss 与分母**：一次更新的 loss = (S₁ + S₂ + …) / N，N 是这次更新所有 microbatch 里按 `labels[..., 1:]` 数出的监督 token 总数，事先数好再传给每个 microbatch。对拍要比 loss、梯度和一步更新后的参数，还要确认参数真的动了；CPU 上的对拍不能代替 CUDA 上融合 LM head 的对拍。
+- **调度与日志**：transformers 默认的调度是 `linear`，要用常数学习率就得显式设 `constant`，再看日志里的 `learning_rate` 是否始终是设定值。日志 loss 是上次记录以来各步的平均，每步的 batch 不同，噪声大，判断过拟合要用固定的 train 探针和 val。
+- **复现**：除了 adapter，还要存完整配置、生成设置、数据 ID 哈希、版本、基座快照和代码哈希；重载后逐条比输出，不只比汇总分数。
+- **最常见的错误**：只打开 `completion_only_loss` 不看 labels；从自己传进去的模型或列表上检查，而不是从 trainer 里取；按训练 loss 或 test 挑 checkpoint。
+
 ---
 
 ## 21.15 精读
 
 1. **TRL 文档：SFT Trainer**（与安装版本对应的 v1.15.0 页面，lab 第 2 节给了链接：<https://huggingface.co/docs/trl/v1.15.0/en/sft_trainer>）。
-   - 读讲数据集格式（纯文本、对话、prompt–completion）和只在 completion 上算 loss 的部分，再读页面末尾 `SFTConfig` / `SFTTrainer` 的 API 参考。
+   - 读讲数据集格式（纯文本、对话、prompt-completion）和只在 completion 上算 loss 的部分，再读页面末尾 `SFTConfig` / `SFTTrainer` 的 API 参考。
    - 带着这几个问题读：
      - 文档说数据集"已有 `labels` 列时原样使用"。结合 21.4 节，在什么情况下打开 `completion_only_loss` 也救不了被监督的提示？
      - 文档里 packing 怎样处理不同样本之间的注意力边界？如果打开它，21.3 节的检查要加哪一条？

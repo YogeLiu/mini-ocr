@@ -144,7 +144,7 @@ python -m book.part3_post_training.ch25_grpo.tour 4 --final-test --device cuda -
 
 20步冒烟训练387.481秒、任务436.593秒。新增全部任务墙钟8619.064秒（2.394185小时，含加载/CPU评分、共享GPU，非纯CUDA内核时间）；各新GRPO训练allocated峰值13.371–13.402 GiB。200步layered预计另需3871.786秒，超出剩余380.936秒预算，未启动。未再使用test，原冻结记录不变。没有安装依赖或下载模型。
 
-本地最终全量测试：876 passed、1 skipped、14 warnings（13.20秒）。补充实验的解释见本章正文 §25.8.7，配对区间见 `outputs/book/ch25/gpu/supp/seed-summary.json`；配置、各运行耗时/CER、日志、CSV和PNG见 `outputs/book/ch25/gpu/supp/`；测试日志为 `outputs/book/ch25/gpu/logs/pytest-supp-full.log`。
+本地最终全量测试：876 passed、1 skipped、14 warnings（13.20秒）。补充实验的解释见本章正文 §25.8.6，配对区间见 `outputs/book/ch25/gpu/supp/seed-summary.json`；配置、各运行耗时/CER、日志、CSV和PNG见 `outputs/book/ch25/gpu/supp/`；测试日志为 `outputs/book/ch25/gpu/logs/pytest-supp-full.log`。
 
 ### 验证器覆盖限制
 

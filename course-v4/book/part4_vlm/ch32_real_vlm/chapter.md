@@ -1,4 +1,4 @@
-# 第 32 章　解剖真实 VLM
+# 第 32 章 解剖真实 VLM
 
 ## 本章导读
 
@@ -10,13 +10,13 @@
 - **SmolVLM-256M-Instruct**：最小的那个，用来对照另一种 processor 和连接器。
 - **Qwen3-VL-2B-Instruct**：同一家族里更大的一个，主要出现在零样本实测里。
 
-方法沿用第 17 章拆 GPT-2 的做法：先打印形状，再逐项数参数。对拍的范围小一些：第 17 章自己写了完整前向，这一章只复刻 processor，和官方实现逐位对拍；模型内部用 forward hook 记录形状，不复刻前向。VLM 比 GPT-2 多出一整段"图片怎么变成 token"的流水线，它藏在 processor 和 chat template 里，容易出错，也少有人讲清楚。本章一半的篇幅花在这里。
+方法沿用第 17 章拆 GPT-2 的做法：先打印形状，再逐项数参数（对拍只做 processor，范围见 32.3.5 节）。VLM 比 GPT-2 多出一整段把图片变成 token 的流水线，它藏在 processor 和 chat template 里，容易出错，也少有人讲清楚。本章一半的篇幅花在这里。
 
 先说结论：真实 VLM 和你的小 OCR 是同一种结构，都是"视觉编码器 → 连接器 → 语言模型"，视觉 token 都排在问题文字前面。大模型多做的事情主要有四件：
 
 1. **动态分辨率**：不把所有图压成同一个尺寸，而是按面积预算缩放，视觉 token 数跟着图变。
 2. **token 合并**：相邻 2×2 个 patch 并成一个 token，进语言模型的序列短了 4 倍。
-3. **占位符机制**：先在文字里放一排占位 token，再把视觉向量"填"进这些位置，而不是简单地拼在最前面。
+3. **占位符机制**：先在文字里放一排占位 token，再把视觉向量填进这些位置，不直接拼在最前面。
 4. **预训练**：视觉塔、语言模型都是预训练过的，开箱就能做零样本 OCR，只是格式不一定合你的意。
 
 实测的结论是：不训练时三个模型的 EM_norm 都很低，最高的 Qwen3-VL-2B 也只有 13/180（本项目观察，【G-val】）。但低分不全是没看清图。Qwen3.5 有 48 条只差句末标点，其中 46 条模型其实抄对了，是提取规则把标点删了（32.9 节）。
@@ -51,7 +51,7 @@
 **和项目的关系。** 第 31 章是你从零写的小模型（M2）。这一章换成真实 VLM，按预先定好的规则在 val 上选出一个模型，交给第 33 章做 LoRA 微调（R3 的零样本基线）。相关作业的门槛**待校准**。
 
 > **先修回顾。**
-> - 第 17 章：拆一个真实模型的四步——打印结构、读 config、逐项数参数、自己写前向和官方对拍；对拍要关掉一切随机和差异来源。本章前三步照做，对拍只做 processor，模型内部用 hook 记录形状。
+> - 第 17 章：拆一个真实模型的四步是打印结构、读 config、逐项数参数、自己写前向和官方对拍；对拍要关掉一切随机和差异来源。本章前三步照做；第四步缩小范围，第 17 章自己写了完整前向，这一章只复刻 processor 和官方逐位对拍，模型内部用 forward hook 记录形状，不复刻前向。
 > - 第 26 章：两类多模态接口（前缀拼接、交叉注意力）；Qwen 的 processor 把高宽调到 32 的倍数，切 16×16 patch，2×2 合并。
 > - 第 29 章：patch 嵌入就是核与步长都为 p 的卷积；视觉 token 数 (H/p)(W/p)；分辨率变了要插值位置表。
 > - 第 30 章：CLIP/SigLIP 用图文对比预训练视觉编码器，SmolVLM 的视觉塔就是 SigLIP 系列。
@@ -103,13 +103,30 @@
 | 输入图 | 固定 32×160 灰度 | 任意尺寸 RGB，按面积缩放 |
 | patch | 4×4 | 16×16，静态图复制成 2 帧 |
 | 视觉编码器 | 3 层 ViT，宽 256，随机初始化 | 12 层 ViT，宽 768，预训练 |
-| 进语言模型的视觉 token | 320 | 这张图 75，val 上 65–96 |
+| 进语言模型的视觉 token | 320 | 这张图 75，val 上 65 到 96 |
 | 连接器 | 两层 MLP，不压缩 | 2×2 合并 + 两层 MLP，压缩 4 倍 |
 | 接口 | `torch.cat` 前缀拼接 | 占位符 + 填入 |
 | 词表 | 259（字节） | 248320（子词） |
 | 参数 | 约 587 万 | 852,985,920 |
 
 最后一行的 852,985,920 是 tour 加载模型时打印的参数总数（本项目观察，`gpu/remote_logs/ch32_all_remote_logs.log` 的 `parameters=` 字段）。32.4 节会把它一项一项拆出来。
+
+再按代码里的名字把零件对一遍。中间一列是第 31 章 `formula_ocr.py` 里 `FormulaOCR` 的属性，右边一列是 Qwen3.5 的模块路径，`print(model)` 和 safetensors 文件头（【权重头】）里都是这些名字：
+
+| 角色 | 第 31 章 `FormulaOCR` | Qwen3.5-0.8B | 本章哪一节 |
+|---|---|---|---|
+| 前台：图像 | 无，数据端直接给 32×160 灰度画布 | image processor：`smart_resize` 缩放、切 patch、排列 | 32.2、32.3 |
+| 前台：文字 | `targets_for`：字节值加 1，前面放 BOS | tokenizer 加 chat template，在图片的位置留一个占位符 | 32.6 |
+| patch 嵌入 | `patch_embed(images, self.patch_weight)` | `model.visual.patch_embed`（三维卷积） | 32.3.3、32.4.3 |
+| 视觉位置 | `self.pos`，固定 320 行 | `model.visual.pos_embed`，48×48 的表按实际网格插值；注意力里另有二维 RoPE | 32.4.3 |
+| 视觉编码器 | `self.vision`，3 个 `VisionBlock` | `model.visual.blocks`，12 个 block | 32.4.3 |
+| 连接器 | `self.connector`：LayerNorm 加两层 MLP，320 进 320 出 | `model.visual.merger`：LayerNorm、2×2 拼接、两层 MLP，300 进 75 出 | 32.5 |
+| 接口 | `torch.cat((visual, self.gpt.tok(inputs)), dim=1)` | 先查嵌入表，再用 `masked_scatter` 把视觉向量填进占位位置 | 32.7 |
+| 语言侧位置 | GPT 里的一维 RoPE | M-RoPE，`position_ids` 形状 [3, 1, L] | 32.7 |
+| 语言模型 | `self.gpt`，4 层 | `model.language_model`，24 层 | 32.4.3 |
+| 输出层 | 和字节嵌入共享权重 | 和词嵌入共享权重（`tie_word_embeddings`） | 32.4.3 |
+
+每一行左右两边做的是同一件事。差别最大的是两行前台、接口和两行位置，本章大半篇幅在讲它们。
 
 ### 32.1.4 三个模型一览
 
@@ -133,7 +150,7 @@
 
 processor 会先把图缩放一次，所以 H 和 W 不是你给的那个尺寸。缩放规则叫 `smart_resize`，下游的形状都由它决定。不会手算它，你就没法预测显存、没法解释"为什么我的图变糊了"，也没法在第 33 章调图像预算。
 
-### 32.2.2 直觉：复印机的"按面积缩放"
+### 32.2.2 直觉：按面积缩放的复印机
 
 想象一台复印机，规定"复印件面积必须在 A 到 B 之间，边长必须是 32 的倍数，尽量保持长宽比"。
 
@@ -141,7 +158,7 @@ processor 会先把图缩放一次，所以 H 和 W 不是你给的那个尺寸�
 - 原件太大（一张海报）：缩小到面积不超过 B。
 - 大小合适：只把边长凑成 32 的倍数。
 
-公式图几乎全是"便利贴"：高几十像素、宽几百像素。所以对本章的数据，`smart_resize` 基本上只走"放大"这一支。
+公式图几乎全是便利贴：高几十像素、宽几百像素。所以对本章的数据，`smart_resize` 基本上只走放大这一支。
 
 为什么是 32？因为一个 patch 是 16×16，合并又是 2×2，一个视觉 token 管 32×32 像素。边长是 32 的倍数，才能不多不少地切完、并完。
 
@@ -159,21 +176,21 @@ h₀ = round(h/f)·f,   w₀ = round(w/f)·f
 
 **第二步，看面积落在哪里。**
 
-- 若 h₀·w₀ > M（太大）：令 s = √(h·w / M)，
+- **缩小分支**，h₀·w₀ > M（太大）：令 s = √(h·w / M)。s 是边长要缩的倍数：面积是两条边相乘，要把面积缩到原来的 1/s²，两条边各除以 s 就够了，所以面积比要开平方。
 
   ```text
   H' = max(f, ⌊h/s/f⌋·f),   W' = max(f, ⌊w/s/f⌋·f)
   ```
 
   向下取整。两条边都没有被 `max(f, …)` 钉住时，面积不超过 M；短边被钉在 f 时可能超过。例如 m = 16384、M = 65536 时，32×3200 缩成 32×2560，面积 81920 > 65536（数学结论，第 33 章的预算就是这一组）。
-- 若 h₀·w₀ < m（太小）：令 s = √(m / (h·w))，
+- **放大分支**，h₀·w₀ < m（太小）：令 s = √(m / (h·w))，两条边各乘以 s，
 
   ```text
   H' = ⌈h·s/f⌉·f,   W' = ⌈w·s/f⌉·f
   ```
 
   向上取整，保证不低于 m。
-- 否则：H' = h₀，W' = w₀。
+- 否则，面积在 [m, M] 之间：H' = h₀，W' = w₀。
 
 **第三步，数 token。**
 
@@ -182,14 +199,14 @@ patch 数   N_patch = (H'/16)·(W'/16) = H'W'/256
 视觉 token N_vis   = N_patch / 4    = H'W'/1024
 ```
 
-也就是说（数学结论）：**静态图片的视觉 token 数等于缩放后面积除以 1024。**视觉编码器里跑的是 N_patch，语言模型里跑的是 N_vis，前者是后者的 4 倍。
+也就是说（数学结论）：**静态图片的视觉 token 数等于缩放后面积除以 1024。**1024 = 32²，正好是一个视觉 token 管的 32×32 像素；H'、W' 都是 32 的倍数，所以这个除法总能除尽。视觉编码器里跑的是 N_patch，语言模型里跑的是 N_vis，前者是后者的 4 倍。
 
 **两个取整方向带来的意外（数学结论）：**
 
-1. "放大"分支用向上取整，两条边各自向上凑，结果面积**可能超过 M**。尤其当 m = M 时，几乎一定超过。`smart_resize` 不是一个严格的面积夹子。
-2. "缩小"分支用向下取整，两条边各自向下凑，结果面积**可能低于 m**。
+1. 放大分支用向上取整，两条边各自向上凑，结果面积**可能超过 M**。尤其当 m = M 时，几乎一定超过。`smart_resize` 不是一个严格的面积夹子。
+2. 缩小分支用向下取整，两条边各自向下凑，结果面积**可能低于 m**。
 
-所以 [m/1024, M/1024] 不是无条件的硬保证，越不越界取决于预算和图的形状。m = M 时两端都容易越界；M 较小时，极扁的图可能超过上限（上面 32×3200 的例子）。本章的 m = 65536、M = 262144 这一组，对长宽比不超过 200、短边 1–1499 的整数尺寸逐一穷举，没有越界（数学结论，离线穷举，只覆盖这个尺寸范围）。
+所以 [m/1024, M/1024] 不是无条件的硬保证，越不越界取决于预算和图的形状。m = M 时两端都容易越界；M 较小时，极扁的图可能超过上限（上面 32×3200 的例子）。本章的 m = 65536、M = 262144 这一组，对长宽比不超过 200、短边 1 到 1499 的整数尺寸逐一穷举，没有越界（数学结论，离线穷举，只覆盖这个尺寸范围）。
 
 **动态分辨率在解决什么问题？**固定尺寸（例如 SmolVLM 关掉分块时统一成 512×512，第 27 章）有两个毛病：扁长的公式被压扁或者四周填满白边；大图被缩小，小符号糊掉。按面积缩放保留长宽比，token 数跟着内容走。代价是 batch 里每张图的 token 数不同，要靠占位符机制把它们安排进序列（32.7 节）。
 
@@ -197,7 +214,7 @@ patch 数   N_patch = (H'/16)·(W'/16) = H'W'/256
 
 还是那张 val 第一张图，h = 32，w = 298。
 
-1. 就近取整：h₀ = round(1.0)·32 = 32，w₀ = round(9.3125)·32 = 9·32 = 288。面积 9216 < 65536，走"放大"分支。
+1. 就近取整：h₀ = round(1.0)·32 = 32，w₀ = round(9.3125)·32 = 9·32 = 288。面积 9216 < 65536，走放大分支。
 2. s = √(65536 / (32·298)) = √(65536 / 9536) ≈ √6.8725 ≈ 2.6215。
 3. H' = ⌈32·2.6215/32⌉·32 = ⌈2.62⌉·32 = 3·32 = 96。
 4. W' = ⌈298·2.6215/32⌉·32 = ⌈781.2/32⌉·32 = ⌈24.41⌉·32 = 25·32 = 800。
@@ -219,8 +236,8 @@ tour 部分 2 把这张图按 0.5、1、2、4 倍缩放，再配三个面积上�
 
 读这张表：
 
-- **平台。**前三行完全相同。原图不管是 16 高还是 64 高，面积都不到 65536，都被放大到同一个尺寸。对小公式来说，"动态分辨率"其实是"统一放大到下限面积"，视觉 token 被下限钉死在 75 附近。
-- **下溢。**最后一行第一格：下限和上限都是 65536，图太大走"缩小"分支，结果 64×768 = 49152，比下限还小，只有 48 个 token。这就是上面说的第二个意外。
+- **平台。**前三行完全相同。原图不管是 16 高还是 64 高，面积都不到 65536，都被放大到同一个尺寸。对小公式来说，动态分辨率其实就是统一放大到下限面积，视觉 token 被下限钉死在 75 附近。
+- **下溢。**最后一行第一格：下限和上限都是 65536，图太大走缩小分支，结果 64×768 = 49152，比下限还小，只有 48 个 token。这就是上面说的第二个意外。
 - **上限够大就不动。**128×1192 就近取整成 128×1184 = 151552，在 [65536, 262144] 之间，不缩放。
 
 整个 val 上，Qwen3.5 的视觉 token 最少 65、最多 96（本项目观察，`gpu/remote_runs/main/processor.json` 180 行的 `merged_tokens`），平均 75.4（【G-val】的 `mean_visual_tokens`）。
@@ -229,7 +246,7 @@ tour 部分 2 把这张图按 0.5、1、2、4 倍缩放，再配三个面积上�
 
 ### 32.2.5 对照代码：`smart_resize`
 
-`vlm_anatomy.py` 第 42–55 行（`# >>> 练习 32.1`）：
+`vlm_anatomy.py` 第 42 到 55 行（`# >>> 练习 32.1`）：
 
 ```python
 def smart_resize(height, width, factor=32, min_pixels=65536, max_pixels=262144):
@@ -247,15 +264,17 @@ def smart_resize(height, width, factor=32, min_pixels=65536, max_pixels=262144):
     return h, w
 ```
 
+先对一下名字。代码里的 `height`、`width` 是推导里的原图 h、w；代码里的 `h`、`w` 却是推导里的 h₀、w₀，经过某个分支以后又被改写成 H'、W'。同一个字母在推导和代码里指的不是同一个量，读的时候别混。
+
 逐行对照 32.2.3 节：
 
-- 第 44–47 行：参数检查。长宽比超过 200 直接报错，这条规则来自官方实现（例如 1×201 的图会被拒绝，测试 `test_resize_rejects_invalid`）。
-- 第 48 行：第一步，就近取整。`round` 是 Python 内置的，自带"五成双"。
-- 第 49–51 行："缩小"分支。注意 `scale` 用的是**原图**面积 `height*width`，不是取整后的 `h*w`；`floor` 之外还有 `max(factor, …)`，保证至少一个 32。
-- 第 52–54 行："放大"分支，`ceil`。
+- 第 44 到 47 行：参数检查。长宽比超过 200 直接报错，这条规则来自官方实现（例如 1×201 的图会被拒绝，测试 `test_resize_rejects_invalid`）。
+- 第 48 行：第一步，就近取整。`round` 是 Python 内置的，自带五成双。
+- 第 49 到 51 行：缩小分支。注意 `scale` 用的是**原图**面积 `height*width`，不是取整后的 `h*w`；`floor` 之外还有 `max(factor, …)`，保证至少一个 32。
+- 第 52 到 54 行：放大分支，`ceil`。
 - 判断条件用的是取整后的 `h*w`，缩放比例用的是原图的 `height*width`。两者混用是官方规则，复刻时必须照抄。
 
-`factor` 由调用方传入 `patch_size*merge_size`（第 67 行），不是写死的 32。
+`factor` 由调用方传入 `patch_size*merge_size`（第 68 行），不是写死的 32。
 
 测试 `test_resize_rounding_and_budget` 钉住了三件事：`smart_resize(80, 80, min_pixels=1, max_pixels=100000)` 等于 (64, 64)，因为 80/32 = 2.5，五成双取 2；1000×2000 的图缩完以后边长是 32 的倍数且面积不超过上限；37×239 在 m = M = 65536 时面积超过 65536。
 
@@ -308,7 +327,7 @@ C × T × P × P = 3 × 2 × 16 × 16 = 1536
 
 **归一化。** 像素先乘 1/255 变到 [0, 1]，再减均值 0.5、除标准差 0.5，变到 [−1, 1]。均值和标准差来自 processor 配置（`image_mean = image_std = (0.5, 0.5, 0.5)`）。
 
-**排列。** 设缩放后图是 `(3, H', W')`，网格 gh = H'/16，gw = W'/16，合并尺寸 m = 2。把高拆成 (gh/m, m, 16)，宽拆成 (gw/m, m, 16)：
+**排列。** 设缩放后图是 `(3, H', W')`，网格 gh = H'/16，gw = W'/16，合并尺寸 m = 2。注意这里的 m 是 `merge_size`，和 32.2 节的面积下限 m 不是同一个量，本节和 32.3.4 节的 m 都指合并尺寸。把高拆成 (gh/m, m, 16)，宽拆成 (gw/m, m, 16)：
 
 ```text
 (3, gh/m, m, 16, gw/m, m, 16)
@@ -324,7 +343,7 @@ reshape   → (gh·gw, C·T·16·16)
 
 ### 32.3.4 数字例子：4×4 的编号墙
 
-用一个能手算的小例子：4×4 个 patch，每个 patch 只有 1 个像素（p = 1），m = 2，像素值就是自己的行优先编号 0–15：
+用一个能手算的小例子：4×4 个 patch，每个 patch 只有 1 个像素（p = 1），m = 2，像素值就是自己的行优先编号 0 到 15：
 
 ```text
  0  1  2  3
@@ -355,7 +374,7 @@ merger 拿连续 4 个，正好是一个方阵。如果按普通行优先排成 
 
 ### 32.3.5 对照代码：`replica_processor`
 
-`vlm_anatomy.py` 第 59–77 行（`# >>> 练习 32.2`）：
+`vlm_anatomy.py` 第 59 到 78 行（`# >>> 练习 32.2`）：
 
 ```python
 image = image.convert("RGB")
@@ -371,12 +390,12 @@ return {"pixel_values": blocks.reshape(gh*gw, 3*t*p*p),
         "image_grid_thw": np.array([[1, gh, gw]], dtype=np.int64), "resized_hw": [h, w]}
 ```
 
-- 第 68 行：PIL 的 `resize` 参数顺序是 **(宽, 高)**，和 numpy 的 (高, 宽) 相反。插值用双三次（BICUBIC），和官方 PIL 后端一致。插值本身借用 PIL，不自己写。
-- 第 70 行：先转 float64 乘 `1/255`，再转 float32。看起来多此一举，但官方 PIL 后端就是这个顺序。如果改成在 float32 里乘 `np.float32(1/255)`，256 个像素值里有 126 个最后一位不同，归一化后最大差 1.19e-07，"逐位相等"就过不了；float32 里直接除以 255 倒是和官方逐位相同（CPU 穷举 0–255 复算）。
-- 第 71 行：减均值、除标准差，再把 HWC 转成 CHW。
-- 第 74 行：`reshape` 成七个轴，`transpose(1, 4, 2, 5, 0, 3, 6)` 就是 32.3.3 节的 (Bh, Bw, mh, mw, C, ph, pw)。
-- 第 75 行：在倒数第三个位置插一个长度为 1 的轴，再沿它重复 t = 2 次，得到 (…, C, T, ph, pw)。这就是"静态图复制成两帧"。
-- 第 76–77 行：展平，并返回 `image_grid_thw = [[1, gh, gw]]`。
+- 第 69 行：PIL 的 `resize` 参数顺序是 **(宽, 高)**，和 numpy 的 (高, 宽) 相反。插值用双三次（BICUBIC），和官方 PIL 后端一致。插值本身借用 PIL，不自己写。
+- 第 71 行：先转 float64 乘 `1/255`，再转 float32。看起来多此一举，但官方 PIL 后端就是这个顺序。如果改成在 float32 里乘 `np.float32(1/255)`，256 个像素值里有 126 个最后一位不同，归一化后最大差 1.19e-07，逐位相等就过不了；float32 里直接除以 255 倒是和官方逐位相同（CPU 穷举 0 到 255 复算）。
+- 第 72 行：减均值、除标准差，再把 HWC 转成 CHW。
+- 第 75 行：`reshape` 成七个轴，`transpose(1, 4, 2, 5, 0, 3, 6)` 就是 32.3.3 节的 (Bh, Bw, mh, mw, C, ph, pw)。
+- 第 76 行：在倒数第三个位置插一个长度为 1 的轴，再沿它重复 t = 2 次，得到 (…, C, T, ph, pw)。静态图复制成两帧就是在这一步做的。
+- 第 77 到 78 行：展平，并返回 `image_grid_thw = [[1, gh, gw]]`。
 
 **对拍的结果。** tour 部分 1 把复刻和 transformers 的 `Qwen2VLImageProcessorPil` 跑在同一张图上，比较 `pixel_values` 有几个元素不相等、最大绝对误差多少、grid 是否相同；有 Qwen3.5 缓存时，还比较套完模板以后的 `input_ids` 和 `attention_mask`。在 val 的 180 张原图上：不相等的元素 0 个，最大绝对误差 0.0，grid 和 `input_ids` 全部相同（本项目观察，`gpu/remote_runs/main/processor.json`，processor 在 CPU 上 fp32 运行）。这里的"逐位"指 float32 严格相等，不是 `allclose`；它只对这套 Pillow 版本和 RGB 静态图路径成立（lab 第 1 节）。
 
@@ -401,7 +420,7 @@ return {"pixel_values": blocks.reshape(gh*gw, 3*t*p*p),
 
 "0.8B"这个名字告诉你大概多大。但做 LoRA（第 33 章）时你要决定冻结哪一段，算显存时要知道每段多重，读技术报告时要知道"视觉塔 600M"是什么分量。第 17 章逐项手算过 GPT-2 的参数，这里对 VLM 做同样的事。
 
-一个 VLM 的参数分三段：视觉塔、连接器、语言模型。你可能以为视觉塔很重，但在 Qwen3.5 里，单块最大的是语言模型的词嵌入表：词表有 24 万多个 token，每个 1024 维。
+一个 VLM 的参数分三段：视觉塔、连接器、语言模型。在 Qwen3.5 里，单块最大的是语言模型的词嵌入表：词表有 24 万多个 token，每个 1024 维，光这一块就比整个视觉塔重。
 
 ### 32.4.3 推导：逐项数
 
@@ -487,11 +506,11 @@ Qwen3-VL-2B 本地没有缓存，这里只给日志里的总数 2,127,532,032，
 
 `cu_seqlens` 形状 [2]，按它的定义内容应是 [0, 300]（推断，数值没有落盘）：一张图一段，视觉注意力只在这一段里做。batch 里有多张图时，它们被首尾相接成一个长序列，`cu_seqlens` 记录每张图的边界，防止图和图之间互相注意。这和第 29 章的 `[B, N, D]` 不同：没有 batch 维，靠边界表分段。
 
-整个视觉塔的"输出"有两个：`last_hidden_state` 是 merger 之前的 300 个 patch，`pooler_output` 是 merger 之后的 75 个 token。送进语言模型的是后者。
+整个视觉塔的输出有两个：`last_hidden_state` 是 merger 之前的 300 个 patch，`pooler_output` 是 merger 之后的 75 个 token。送进语言模型的是后者。
 
 ### 32.4.5 对照代码：tour 部分 5
 
-`tour.py` 第 261–281 行：
+`tour.py` 第 261 到 281 行：
 
 ```python
 for name in ("model.visual.patch_embed","model.visual.blocks.0","model.visual.merger","model.visual","model.language_model"):
@@ -530,7 +549,7 @@ for h in handles: h.remove()
 1. **宽度对齐**：视觉向量多宽，语言模型就得收多宽。
 2. **长度**：多少个视觉 token 进语言模型。语言模型每层都要处理这些 token，序列长度直接决定算力和显存。
 
-第 31 章 31.3.3 节算过：前缀拼接的注意力代价随视觉 token 数平方增长。连接器是唯一能在"进语言模型之前"砍长度的地方。
+第 31 章 31.3.3 节算过：前缀拼接的注意力代价随视觉 token 数平方增长。连接器是唯一能在进语言模型之前砍长度的地方。
 
 ### 32.5.2 直觉：三种转接头
 
@@ -538,7 +557,7 @@ for h in handles: h.remove()
 - **Qwen 式 2×2 合并 + MLP**：先把相邻 4 个 patch 拼成一条长向量，再翻译。个数变成四分之一。像把四张小照片拼成一张拼图再寄出去。SmolVLM 的"像素重排"（pixel shuffle）是同一个想法，一次并 4×4 = 16 个。
 - **BLIP-2 式 Q-Former**：派固定数量的"记者"（可学习的 query）去采访全部视觉 token，每个记者交回一篇稿子。不管图多大，交回的稿子数固定。像开新闻发布会，记者人数事先定好。
 
-前两种是"位置对位置"的局部操作，保留了空间结构；Q-Former 是"按内容挑选"的全局操作，输出个数和图的大小无关。
+前两种是位置对位置的局部操作，保留了空间结构；Q-Former 是按内容挑选的全局操作，输出个数和图的大小无关。
 
 ### 32.5.3 推导：长度、宽度和参数
 
@@ -582,7 +601,7 @@ MLP 的输出长度跟着输入走，Query 的输出永远是 8。两者参数�
 
 ### 32.5.5 对照代码
 
-`vlm_anatomy.py` 第 81–105 行（`# >>> 练习 32.3`）：
+`vlm_anatomy.py` 第 82 到 107 行（`# >>> 练习 32.3`）：
 
 ```python
 class MLPConnector(nn.Module):
@@ -609,7 +628,7 @@ class QueryConnector(nn.Module):
 - `MLPConnector`：`nn.Linear` 只作用在最后一维，所以序列长度原样保留。
 - `self.queries` 的形状是 `[1, 8, 48]`，`expand` 到 batch 大小，不复制内存。
 - `self.kv` 先把视觉向量投到 48 维，注意力的查询来自 query，键和值来自视觉。输出长度跟查询走，所以是 8。
-- 残差 + LayerNorm + FFN：一个最小的"交叉注意力块"。
+- 残差 + LayerNorm + FFN：一个最小的交叉注意力块。
 
 再对照真实的 Qwen merger（transformers 5.19.0 `Qwen3_5VisionPatchMerger.forward`）：
 
@@ -618,7 +637,7 @@ x = self.norm(x).view(-1, self.hidden_size)     # [300, 768] → [75, 3072]
 x = self.linear_fc2(self.act_fn(self.linear_fc1(x)))  # → [75, 1024]
 ```
 
-先对每个 patch 的 768 维做 LayerNorm，再 `view` 成 3072 维（这一步就是 2×2 合并），然后两层 MLP。三行代码，没有任何"挑选"。
+先对每个 patch 的 768 维做 LayerNorm，再 `view` 成 3072 维（这一步就是 2×2 合并），然后两层 MLP。三行代码，没有任何挑选。
 
 测试 `test_connectors_use_image_and_backprop` 检查三件事：输出形状对、梯度能传回输入且有限非零、把输入换成全零以后输出会变。最后一条的用处见下面的常见错误。
 
@@ -679,19 +698,21 @@ N_vis = (grid_t · grid_h · grid_w) / merge² = prod(image_grid_thw) / 4
 
 | 段 | token | 个数 |
 |---|---|---|
-| 开头 | `<|im_start|>` `user` `\n` `<|vision_start|>` | 4 |
-| 图片 | `<|image_pad|>` × 75 | 75 |
-| 图片结束 | `<|vision_end|>` | 1 |
+| 开头 | `<\|im_start\|>` `user` `\n` `<\|vision_start\|>` | 4 |
+| 图片 | `<\|image_pad\|>` × 75 | 75 |
+| 图片结束 | `<\|vision_end\|>` | 1 |
 | 提示词 | `Trans` `cribe` `Ġthe` … `Ġmarkdown` `.`（`Ġ` 是字节级 BPE 里的空格，第 17 章） | 22 |
-| 轮次切换 | `<|im_end|>` `\n` `<|im_start|>` `assistant` `\n` | 5 |
+| 轮次切换 | `<\|im_end\|>` `\n` `<\|im_start\|>` `assistant` `\n` | 5 |
 | 空思考块 | `<think>` `\n\n` `</think>` `\n\n` | 4 |
 | 合计 | | 111 |
 
-36 个非图片 token 加 75 个图片 token。图片占位排在下标 4–78。
+36 个非图片 token 加 75 个图片 token。图片占位排在下标 4 到 78。
 
 **Qwen3-VL。**它的 `formatted_prompt` 在 `assistant\n` 处就结束了，没有空思考块（【G-val】的 `qwen3vl_val_original.json`）。少 4 个 token，所以同一张图是 107。这就是 32.1.4 节那 4 个 token 的来历。
 
-**为什么 Qwen3.5 要一个空的思考块？**Qwen3.5 默认会先"想"再答。`enable_thinking=False` 的做法是让模板替模型写好一个空的 `<think></think>`，模型就直接进入作答。忘了这个开关，模型会先输出一大段推理，256 个 token 的上限很快被用完。
+把 32.2 节和这里串起来，任何一张图进 Qwen 的输入长度都能在跑之前算出来：先用 `smart_resize` 得到 H'×W'，再算 N_vis = H'W'/1024，最后加上模板里固定的文字 token。用本章的提示词，Qwen3.5 的输入长度是 N_vis + 36，Qwen3-VL 是 N_vis + 32（数学结论，前提是提示词和模板不变，单图）。比如 val 上视觉 token 最多的那张图有 96 个，进 Qwen3.5 就是 132 个 token。
+
+**为什么 Qwen3.5 要一个空的思考块？**Qwen3.5 默认会先思考再作答。`enable_thinking=False` 的做法是让模板替模型写好一个空的 `<think></think>`，模型就直接进入作答。忘了这个开关，模型会先输出一大段推理，256 个 token 的上限很快被用完。
 
 **SmolVLM。**同一张 32×298 的图，`pixel_values` 是 [1, 5, 3, 512, 512]：4 个图块加 1 张全图（【G-val】第一条的 `pixel_shape`）。展开以后的 token 序列（本地 CPU 复现，只加载 processor）：
 
@@ -706,11 +727,11 @@ Trans c ribe … <end_of_utterance> \n Ass istant :
 
 视觉 token 5 × 64 = 320，输入总长 364，和【G-val】一致。扁长的公式被横着切成 1 行 4 列。整个 val 上 SmolVLM 的视觉 token 在 320 到 832 之间（5 到 13 块），平均 425.2（【G-val】的逐条 `visual_tokens` 和 `mean_visual_tokens`）。图块怎样决定行列数，细节以 transformers 的 `Idefics3ImageProcessor` 源码为准（待验证）；这里只引用实测的块数。
 
-注意两个模型给"位置"的办法不同：SmolVLM 用文字 token `<row_1_col_2>` 告诉语言模型"这一块在第 1 行第 2 列"，Qwen 用三维位置编号（32.7 节）。
+注意两个模型告诉语言模型图像位置的办法不同：SmolVLM 用文字 token `<row_1_col_2>` 告诉语言模型"这一块在第 1 行第 2 列"，Qwen 用三维位置编号（32.7 节）。
 
 ### 32.6.5 对照代码
 
-模板渲染在 `tour.py` 第 158–164 行的 `inputs_for`：
+模板渲染在 `tour.py` 第 158 到 164 行的 `inputs_for`：
 
 ```python
 messages=[{"role":"user","content":[{"type":"image"},{"type":"text","text":PROMPT}]}]
@@ -719,10 +740,10 @@ inputs=processor(text=prompt,images=[image],return_tensors="pt")
 ```
 
 - `{"type": "image"}` 不带图片本身，只是告诉模板"这里有一张图"。图片本身在下一行作为 `images=[image]` 传给 processor。
-- `tokenize=False` 先拿到字符串，方便打印和存档；然后由 processor 一次性完成"展开占位符 + 分词 + 处理图像"。
+- `tokenize=False` 先拿到字符串，方便打印和存档；然后由 processor 一次性完成展开占位符、分词和处理图像。
 - `enable_thinking=False` 对 SmolVLM 的模板没有作用，多传不会出错。
 
-占位符展开的复刻在 `vlm_anatomy.py` 第 130–137 行（`# >>> 练习 32.4`）：
+占位符展开的复刻在 `vlm_anatomy.py` 第 132 到 140 行（`# >>> 练习 32.4`）：
 
 ```python
 def expand_image_placeholder(prompt, image_token, grid, merge_size=2):
@@ -742,11 +763,11 @@ def expand_image_placeholder(prompt, image_token, grid, merge_size=2):
 
 | 错误 | 现象 | 怎样发现 |
 |---|---|---|
-| 忘了 `add_generation_prompt=True` | 序列停在 `<|im_end|>\n`，模型可能续写一轮 user | 打印 `prompt` 结尾 |
+| 忘了 `add_generation_prompt=True` | 序列停在 `<\|im_end\|>\n`，模型可能续写一轮 user | 打印 `prompt` 结尾 |
 | Qwen3.5 忘了 `enable_thinking=False` | 先输出一段推理，频繁达到长度上限 | `truncated` 计数暴涨；看原始输出开头 |
-| 自己在提示词里手写 `<|image_pad|>`，又让 processor 展开 | 两个占位符，数量对不上 | 复刻函数的"恰好一个"检查；官方报不匹配 |
+| 自己在提示词里手写 `<\|image_pad\|>`，又让 processor 展开 | 两个占位符，数量对不上 | 复刻函数的"恰好一个"检查；官方报不匹配 |
 | 把 `apply_chat_template(tokenize=True)` 返回的 token ID 再当 `text` 交给 processor | `tokenize=True` 时框架已经调用过一次 processor（消息带图片数据时会处理图像、展开占位符、分词），默认只返回 ID；把 ID 再当文本处理是输入类型错误 | 二选一：`tokenize=False` 拿字符串再交给 processor，或 `tokenize=True, return_dict=True` 一步拿到全部张量 |
-| 把 `<|vision_start|>` 也算进视觉 token | 统计的视觉 token 比实际多 2 | 只数 `input_ids == image_token_id` 的位置（tour 第 206 行） |
+| 把 `<\|vision_start\|>` 也算进视觉 token | 统计的视觉 token 比实际多 2 | 只数 `input_ids == image_token_id` 的位置（tour 第 206 行） |
 
 ---
 
@@ -760,7 +781,7 @@ Qwen 和 SmolVLM 的做法是：先把占位符当普通 token 查嵌入表，�
 
 ### 32.7.2 直觉：先排座位，再请人入座
 
-前缀拼接像临时加椅子：视觉 token 来了，在队伍最前面加一排。占位符机制像提前排好座位表：processor 已经在第 4–78 号座位贴了"留座"的条子，语言模型只要把 75 位视觉嘉宾按顺序请到这些座位上。座位表上还写了人数，人数不对当场就会发现。
+前缀拼接像临时加椅子：视觉 token 来了，在队伍最前面加一排。占位符机制像提前排好座位表：processor 已经在第 4 到 78 号座位贴了"留座"的条子，语言模型只要把 75 位视觉嘉宾按顺序请到这些座位上。座位表上还写了人数，人数不对当场就会发现。
 
 ### 32.7.3 推导：替换与检查
 
@@ -785,7 +806,7 @@ Qwen 和 SmolVLM 的做法是：先把占位符当普通 token 查嵌入表，�
 
 | 下标 | 内容 | 时间 | 行 | 列 |
 |---|---|---|---|---|
-| 0–3 | `<|im_start|>` `user` `\n` `<|vision_start|>` | 0–3 | 0–3 | 0–3 |
+| 0 到 3 | `<\|im_start\|>` `user` `\n` `<\|vision_start\|>` | 0 到 3 | 0 到 3 | 0 到 3 |
 | 4 | 第 1 个视觉 token（第 0 行第 0 列） | 4 | 4 | 4 |
 | 5 | 第 2 个视觉 token（第 0 行第 1 列） | 4 | 4 | 5 |
 | … | | | | |
@@ -793,11 +814,11 @@ Qwen 和 SmolVLM 的做法是：先把占位符当普通 token 查嵌入表，�
 | 29 | 第 26 个（第 1 行第 0 列） | 4 | 5 | 4 |
 | … | | | | |
 | 78 | 第 75 个（第 2 行第 24 列） | 4 | 6 | 28 |
-| 79–110 | `<|vision_end|>` 和后面 31 个文字 token | 29–60 | 29–60 | 29–60 |
+| 79 到 110 | `<\|vision_end\|>` 和后面 31 个文字 token | 29 到 60 | 29 到 60 | 29 到 60 |
 
 图片之后的起点是 4 + max(3, 25) = 29。整个序列 111 个 token，最大位置编号只有 60（数学结论，按上述规则手算；`position_ids` 的形状 [3, 1, 111] 是【G-flow】实测，具体数值本章没有落盘，练习里请你验证）。
 
-这里也能看出视觉 token 内部的顺序：合并后网格按行优先排，第 0 行的 25 个，再第 1 行。这和 32.3 节"方阵按行优先"是一回事：processor 排的是 patch，merger 之后每个方阵变成一个 token，token 自然按方阵的行优先顺序排列。
+这里也能看出视觉 token 内部的顺序：合并后网格按行优先排，第 0 行的 25 个，再第 1 行。这和 32.3 节的方阵按行优先是一回事：processor 排的是 patch，merger 之后每个方阵变成一个 token，token 自然按方阵的行优先顺序排列。
 
 ### 32.7.5 对照代码
 
@@ -831,7 +852,7 @@ torch_compilable_check(
 - `unsqueeze(-1)` 把 mask 变成 [1, 111, 1]，`masked_scatter` 会把它广播到 [1, 111, 1024]，然后按顺序用 `image_embeds` 的元素填满所有 True 的位置。
 - 检查比较的是**元素数**：75 × 1024 = 76800。
 
-对照第 31 章 `formula_ocr.py` 第 62 行：
+对照第 31 章 `formula_ocr.py` 第 63 行：
 
 ```python
 embeds = torch.cat((visual, self.gpt.tok(inputs)), dim=1)
@@ -843,7 +864,7 @@ embeds = torch.cat((visual, self.gpt.tok(inputs)), dim=1)
 
 | 错误 | 现象 | 怎样发现 |
 |---|---|---|
-| 绕过完整模型，把查表得到的 `inputs_embeds` 直接交给 `language_model` | 模型照样输出，但完全不看图（占位位置里只有 `<|image_pad|>` 的嵌入） | 换一张图，输出不变（第 33 章的视觉依赖检查） |
+| 绕过完整模型，把查表得到的 `inputs_embeds` 直接交给 `language_model` | 模型照样输出，但完全不看图（占位位置里只有 `<\|image_pad\|>` 的嵌入） | 换一张图，输出不变（第 33 章的视觉依赖检查） |
 | 占位符数和特征数对不上 | "Image features and image tokens do not match" | 报错信息里的两个数：常见的是 300 对 75（忘了除以 4） |
 | 自己算 `position_ids` 时按 0…110 编号 | 不报错，输出变差 | 和 `get_rope_index` 的结果比；最大值应为 60 |
 | batch 里左右 padding 不一致 | 个别样本位置错位 | `get_rope_index` 会用 `attention_mask` 跳过 padding；本章 batch 固定为 1 避开这个问题 |
@@ -903,7 +924,7 @@ val 原图里有 103 条能被 mathtext 渲染（`data_audit_copy.json` 的 `ren
 
 这里要用配对表。如果拿渲染图的 80 条（【G-ren】，Qwen3.5 和 Qwen3-VL 都是 0.113）去和原图的 180 条（0.061、0.072）比，会以为"渲染图普遍好很多"。可这 80 条是能被 mathtext 渲染的子集，本身就偏简单。同一批 80 条配对比，两个 Qwen 几乎没变，Qwen3-VL 的 CER 甚至变差了；只有 SmolVLM 的 CER 大幅下降，主要因为渲染图上它不再复读（截断 0 条，【G-ren】）。
 
-结论：在这批数据上，"换成干净的图"没有给 Qwen 带来可见的提升。80 条的区间很宽，这个结论只是"没看到差别"，不是"证明没有差别"。
+结论：在这批数据上，换成干净的图没有给 Qwen 带来可见的提升。80 条的区间很宽，这个结论只是"没看到差别"，不是"证明没有差别"。
 
 ### 32.8.6 结果：test
 
@@ -1012,7 +1033,7 @@ Qwen3-VL \beta _{U} ( H ) = \sum _ { \substack { i < j \\ i , j \in U } } \beta 
 
 **例 5：胡编。**同一张图，SmolVLM 输出 `\Theta(A) = \{x\in\Sigma_{1}\backslash A|\{A\U\{x\}\}\}`，结构像，符号对不上（目标是 `I_\Sigma(A)=…`）。SmolVLM 的大部分输出属于这一类，加上复读。
 
-**输出包装。**Qwen3.5 的 180 条原始输出全部用 `$` 定界符包着（由 raw 字段逐条统计；`format_issues` 的 `dollar_wrapped`），尽管提示词说了"without markdown"。这不影响分数，因为 `extract_formula` 会剥掉；但它说明零样本模型有自己的"习惯格式"，提示词管不住。
+**输出包装。**Qwen3.5 的 180 条原始输出全部用 `$` 定界符包着（由 raw 字段逐条统计；`format_issues` 的 `dollar_wrapped`），尽管提示词说了"without markdown"。这不影响分数，因为 `extract_formula` 会剥掉；但它说明零样本模型有自己的习惯格式，提示词管不住。
 
 ### 32.9.5 对照代码
 
@@ -1078,7 +1099,7 @@ return formula
 
 ---
 
-## 常见错误
+## 32.12 常见错误
 
 各节末尾的错误表按现象索引：
 
@@ -1092,13 +1113,13 @@ return formula
 - 渲染图"明显更好"：32.8.5
 - test 分数和 val 差很多就想换模型：32.8.6
 
-## 和真实框架的对应
+## 32.13 和真实框架的对应
 
 | 本章 | transformers |
 |---|---|
-| `load_image_only_processor` | `AutoProcessor.from_pretrained(path)`：按模型目录里的配置组装 image processor、tokenizer 和 chat template。transformers 5.19 的 Qwen processor 还会构造视频组件，本章为了只用 PIL 后端，写了一个只含图像和 tokenizer 的子类（`vlm_anatomy.py` 第 108–126 行），模板和占位符展开仍是官方逻辑 |
+| `load_image_only_processor` | `AutoProcessor.from_pretrained(path)`：按模型目录里的配置组装 image processor、tokenizer 和 chat template。transformers 5.19 的 Qwen processor 还会构造视频组件，本章为了只用 PIL 后端，写了一个只含图像和 tokenizer 的子类（`vlm_anatomy.py` 第 111 到 129 行），模板和占位符展开仍是官方逻辑 |
 | `smart_resize`、`replica_processor` | `Qwen2VLImageProcessor`（PIL 版 `Qwen2VLImageProcessorPil`）；`size={"shortest_edge", "longest_edge"}` 就是 `min_pixels`、`max_pixels`。SmolVLM 对应 `Idefics3ImageProcessor` |
-| `expand_image_placeholder` | processor 的 `__call__(text=..., images=...)`：先算 `image_grid_thw`，再把每个 `<|image_pad|>` 换成 prod(grid)/merge² 个，最后分词 |
+| `expand_image_placeholder` | processor 的 `__call__(text=..., images=...)`：先算 `image_grid_thw`，再把每个 `<\|image_pad\|>` 换成 prod(grid)/merge² 个，最后分词 |
 | 模板渲染 | `processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, enable_thinking=False)`；消息里用 `{"type": "image"}` 标记图片位置。也可以 `tokenize=True, return_dict=True` 一步得到张量 |
 | 整个模型 | `AutoModelForImageTextToText.from_pretrained(path, dtype=..., attn_implementation="sdpa")`：Qwen3.5 解析为 `Qwen3_5ForConditionalGeneration`，SmolVLM 为 `Idefics3ForConditionalGeneration` |
 | 视觉向量填入 | `get_placeholder_mask` + `inputs_embeds.masked_scatter(...)`；M-RoPE 位置由 `get_rope_index` 计算 |
@@ -1108,11 +1129,21 @@ return formula
 
 transformers 的类名和函数名以 5.19.0 为准，版本升级后可能变化。读源码时用"找 `masked_scatter`""找 `smart_resize`"这样的关键词定位，比记行号可靠。
 
-## 小结
+## 32.14 小结
 
-真实 VLM 和第 31 章的小 OCR 是同一种结构：processor 把图按面积缩放成 32 的倍数，切成 16×16、复制成两帧的 patch，按 2×2 邻域优先排成 `[N, 1536]`；12 层 ViT 处理 N 个 patch，merger 把每 4 个拼成一个、投到语言模型的宽度；视觉 token 数等于缩放后面积除以 1024。chat template 留出一个占位符，processor 把它展开成 prod(grid)/4 个，语言模型查完嵌入表后用 `masked_scatter` 把视觉向量填进这些位置，再配上三维的 M-RoPE 位置。Qwen3.5-0.8B 的 852,985,920 个参数里，视觉塔约 1 亿，词嵌入约 2.5 亿，merger 只有 1259 万。零样本实测里按规则选中的 Qwen3-VL-2B 在 val 原图上 EM_norm 也只有 13/180（本项目观察，RTX 4090（租用），bf16），和 Qwen3.5 的区间重叠。逐条看原始输出，相当一部分失分来自格式和"删掉模型句末标点"的提取规则，而不是没看清图；第 33 章做 LoRA 之前要先分清这两类失分。
+真实 VLM 和第 31 章的小 OCR 是同一种结构：processor 把图按面积缩放成 32 的倍数，切成 16×16、复制成两帧的 patch，按 2×2 邻域优先排成 `[N, 1536]`；12 层 ViT 处理 N 个 patch，merger 把每 4 个拼成一个、投到语言模型的宽度；视觉 token 数等于缩放后面积除以 1024。chat template 留出一个占位符，processor 把它展开成 prod(grid)/4 个，语言模型查完嵌入表后用 `masked_scatter` 把视觉向量填进这些位置，再配上三维的 M-RoPE 位置。Qwen3.5-0.8B 的 852,985,920 个参数里，视觉塔约 1 亿，词嵌入约 2.5 亿，merger 只有 1259 万。零样本实测里按规则选中的 Qwen3-VL-2B 在 val 原图上 EM_norm 也只有 13/180（本项目观察，RTX 4090（租用），bf16），和 Qwen3.5 的区间重叠。逐条看原始输出，相当一部分失分来自格式和删掉模型句末标点的提取规则，不是没看清图；第 33 章做 LoRA 之前要先分清这两类失分。
 
-## 精读
+复习时抓住下面几条：
+
+- **视觉 token 数**：`smart_resize` 先把高宽就近取整到 32 的倍数；取整后的面积小于 m 时，原图两边各乘 s = √(m/hw) 再向上取整，大于 M 时各除以 s = √(hw/M) 再向下取整（每条边至少 32）。然后 N_patch = H'W'/256，N_vis = H'W'/1024。两个取整方向让面积可能越出 [m, M]，越不越界看预算和图的形状。例子：32×298 → 96×800 → 6×50 = 300 个 patch → 75 个视觉 token。
+- **`pixel_values`**：每行 3 × 2 × 16 × 16 = 1536 个数（静态图复制成两帧），行按 2×2 邻域优先排列。patch 嵌入和视觉 block 把每行变成 768 维、不改行的顺序，所以 merger 能用一次 `view` 把连续 4 行拼成 3072 维。顺序错了形状照样对，只能靠逐位对拍或独立锚点发现。
+- **模块对应**：Qwen3.5 的 `model.visual.patch_embed`、`pos_embed`、`blocks`、`merger` 和 `model.language_model`，对应第 31 章的 `patch_embed`、`self.pos`、`self.vision`、`self.connector` 和 `self.gpt`。视觉塔（含 merger）加语言模型正好是 852,985,920；输出层和词嵌入共享，文件里的 `mtp.*` 加载时不用，都不能再算一遍。
+- **连接器**：合并改长度，MLP 改宽度；Q-Former 的输出个数等于 query 数，和图多大无关。
+- **占位符与位置**：processor 把唯一的 `<|image_pad|>` 展开成 prod(grid)/4 个，输入长度等于 N_vis 加模板里固定的文字 token（本章提示词下 Qwen3.5 加 36，Qwen3-VL 加 32）。模型查表后用 `masked_scatter` 填入视觉向量，先检查元素数相等。M-RoPE 给每个图片 token 时间、行、列三个坐标，图片后的文字从图片起点 + max(合并后行数, 列数) 接着编号。
+- **读零样本结果**：两个 Qwen 的 val 区间重叠，按规则选中不等于显著更好。先读原始输出再解释指标；诊断口径单独列出，不改已经冻结的官方结果。
+- **最常见的错误**：把 patch 数（300）当视觉 token 数（75）；把 `min_pixels`、`max_pixels` 当边长；Qwen3.5 忘了 `enable_thinking=False`；拿渲染图子集和全量 val 直接比。
+
+## 32.15 精读
 
 1. **Liu, Li, Wu, Lee. *Visual Instruction Tuning.* NeurIPS 2023.**（LLaVA）读模型结构和训练两节。
    - LLaVA 的连接器是一个线性投影，后来的 LLaVA-1.5 换成两层 MLP。对照 32.5.3 节的表：它们的输出长度是多少？为什么 LLaVA 不需要 token 合并（提示：它用的图像分辨率和视觉 token 数是多少）？
