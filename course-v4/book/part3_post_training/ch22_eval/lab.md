@@ -69,7 +69,7 @@ python -m book.part3_post_training.ch22_eval.tour 1 --out outputs/book/ch22/cpu
 3. 再看分桶：总体提升是否集中在某一类公式或某一类长度。
 4. 最后看错例标签：提升主要减少的是哪类错误（漏写、多写、替换、格式）。
 
-注意 `unparsable` 这一类：它依赖的是 matplotlib mathtext 子集的可解析判断，不是 LaTeX 编译。本次测量中，干净参考答案本身只有 58.6% 能被这个子集解析；SFT 输出的 parse_rate 为 0.524。解析失败输出集合不等于互斥错误标签 unparsable：前者 238 条中 133 条 EM 正确，后者 95 条均不匹配（先判 correct/format）。因此解析失败中有相当一部分是解析器覆盖不足（如矩阵、`\\`、`\\text`、`\\left`），不是模型错误。读误差时要同时看 EM_norm，不要把 parse_rate 当作正确率。
+注意 `unparsable` 这一类：它依赖的是 matplotlib mathtext 子集的可解析判断，不是 LaTeX 编译。本次测量中，干净参考答案本身只有 58.6% 能被这个子集解析；SFT 输出的 parse_rate 为 0.524。解析失败输出集合不等于互斥错误标签 unparsable：前者 238 条中 133 条 EM 正确，后者 95 条均不匹配（先判 correct/format）。因此解析失败中有相当一部分是解析器覆盖不足：那 133 条 EM 正确的输出与参考一致，失败只能怪解析器（如矩阵类环境；`\text{...}`、`\left(...\right)` 的合法用法 mathtext 是支持的）。但对 EM 不正确、参考也解析失败的输出，不能据此断定输出合法——它可能另有真错误，归因要换真正的 LaTeX 编译或人工核验。读误差时要同时看 EM_norm，不要把 parse_rate 当作正确率。
 
 ## 6. 运行前的预测题
 

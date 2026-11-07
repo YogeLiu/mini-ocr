@@ -1,0 +1,254 @@
+{
+  "ch12_pretrain_data": {
+    "main_note": "已核对12.8原文：例子明确使用规范token长度，后文却转称实际模型token份额；采纳CH12-01。主要输出是分组、去重、过滤、混合和缓存协议；保持规范token与BPE区分。",
+    "report_sha256": "8c4c7428309a32a8c48e8d92e4a016cead0cccf2779158e0bce82943dfc60762",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch25_grpo": {
+    "main_note": "已核对导读及完整审核报告：需将免价值网络的算法性质与本任务使用规则奖励分开；采纳CH25-01为开头范围不清问题，后文澄清一并保留。主要输出是组内优势、KL、损失聚合和奖励诊断约定。",
+    "report_sha256": "8fe7852864f2308ae4ea7fd45a9acbf6774c9635d1149c8538ec8d5a4bdff9de",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch00_intro": {
+    "main_note": "完整报告已读并核对最小反例：采纳CH00-01字符CER边界碰撞、CH00-02扫描规则层次不清、CH00-03声明分组作用域丢失。主审核独立复算bf/rm反例，mathtext差异分别0.53846和0.89189；未声称完整TeX复现。导论建立的任务定义、三种面板和冻结/升级协议是后续章节的重要输入。",
+    "report_sha256": "d7dfe2caffeac36be9cb65113a8ae92cf31590bf345f156e00c94c026670e9dd",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch26_multimodal": {
+    "main_note": "完整报告已读。未确认新增P1/P2；接受报告对教学mask与全因果mask、面积预算例外、抽取及渲染局限的区分。六个多模态角度、视觉前缀/交叉注意力和patch/merge计数构成后续视觉章节接口；视频时间合并的全称表述保留待证，不升级为已确认错误。",
+    "report_sha256": "98b404aac8b3be01ba9d943e2218f3604d363d07184d1b367df00425b2981070",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch13_pretraining": {
+    "main_note": "完整报告和13.6、13.9相关原文已核对。采纳CH13-01为从可解析率推断单调性的证据不足；CH13-02保留为本章默认实现与Kaplan估算口径未就地标明的问题，第16章已有澄清，最终不将其描述为全书完全未解释。训练流/逐公式验证、BOS屏蔽、按token累积、6ND近似和Chinchilla外部系数边界作为后续接口记录。",
+    "report_sha256": "28f06c24ea1567348c05d291a010f027b9c758d359dea261b0257ad585847f48",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch01_tensors": {
+    "main_note": "完整报告已核对。核心广播、stride、view与拆头推导未确认P1/P2；两条P3收窄绝对化建议合理，需保持同设备和先clone的实践建议。输出为轴语义、内存布局与单位计数接口，供后续attention、cache和图像章节使用。",
+    "report_sha256": "c05cea6a1f61742886f4998c580e8f11140e33f4e62818b1918130eaf54c288f",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch27_image_tensors": {
+    "main_note": "完整报告及457、573行上下文已读。采纳CH27-01：内容框等效面积不能转成完全空白token数量，128×14跨8格的反例清晰。CH27-02采纳为局部断言过强，但保留本节已总括线索非证明的事实。记录本章min_pixels=1024与前章65536是已声明配置变化，不预判冲突。",
+    "report_sha256": "9fda52107359eaed155cb699cbb702e0ac272e7dae996c1d44e93e39c14206ed",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch14_decoding": {
+    "main_note": "完整报告及distinct-n、GNMT上下文已读；主审核另打开GNMT原文第7节，确认0.6至0.7对应早期length^alpha，最终lp式默认alpha=beta=0.2。采纳CH14-01语料级多样性不能单独诊断单条循环、CH14-02超参出处错接。采样处理顺序、EOS长度与仅最终长度归一化均为本书显式约定，保留与后章对照。",
+    "report_sha256": "e77c2eed2352667272284a1ce3514239f37e31527c7ea2dc5f50e3a3302f631f",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch28_cnn": {
+    "main_note": "完整报告已读。未确认P1/P2；保留有限差分不是形式证明的P3措辞建议。互相关、输出几何、反向累加、感受野r=10/j=4、BN统计和来源组bootstrap构成后章接口；章内已经披露CE选点偏离、来源不等于字体互斥、平均/最大池化的表示条件，不把这些再列为未知缺陷。",
+    "report_sha256": "b0f4999ccdeb5eb1ab780005adb80a463404498ff9c072f78f2bd45fd262dd2d",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch15_kvcache": {
+    "main_note": "完整报告已核对，未新增确认P1/P2。章节接口记录为RoPE后/repeat前缓存、矩形因果mask和pos0、显式head_dim、GQA字节数以及数学等价与浮点容差区分。Qwen3.5的12KiB只代表随T增长的全注意力KV，固定线性状态另计；这些限定在跨章资源比较时必须保留。",
+    "report_sha256": "620fa3214d4612f798e66d25fdfc77c342730016e56fccd3da949759533daa6b",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch02_backprop": {
+    "main_note": "完整报告已读，链式法则、逆拓扑累加和有限差分主线未确认核心推导错误。采纳CH02-01为跨网络推广时的条件缺失：当前固定输入的第一层教学例仍成立。CH02-02为可重复反向的例外澄清；CH02-03仅属助手输入鲁棒性建议，等长前提已写明，不将其升级成正文正常调用或历史梯度结果错误。记录每样本与每token平均、共享梯度与激活保存的后续接口。",
+    "report_sha256": "1243b62153e6ddb42cc46b47b403fba5b3536f41d53c7230e16914c6d4c4aeb8",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch29_vit": {
+    "main_note": "完整报告和29.5、29.8原文已读。采纳CH29-01：无位置表不消除patch投影中的内部像素位置；CH29-02需把绝对位置身份、任意行优先编号和二维局部结构先验分开。MAC数量原文已明确单位，不报FLOP漏因子2。记录patch提取、CLS/all-patch接口、插值和低数据选点限定，等待关联章节完成后统一核查。",
+    "report_sha256": "aa8027d8fc06b59f701c8d305c60f3a088ee80543705ee174553ee8434283436",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch03_softmax_ce": {
+    "main_note": "完整报告已读，采纳CH03-01：恒定频率预测达到H(频率)不意味着所有达到该标量loss的模型都忽略输入，两样本反例严格成立。保留lnV诊断、小logits前提、p-y仅对logits有界、有效token归约与teacher forcing的接口区分。where对非有限上游梯度的边界仅记为外推风险，不指控本章已承诺修复所有反向NaN。",
+    "report_sha256": "3b289cc6aef5bbed60a12d141fa3b2d2794820ed3cd467a9ff3e945d2e8a199f",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch16_training_engineering": {
+    "main_note": "完整报告及checkpoint上下文已读。采纳CH16-01为DDP总显存与静态模型状态混称；CH16-02为以反向约两倍前向的近似推出普遍4/3上限，应改带条件估算，一般式1+R/(F+B)。不否定本章非重入checkpoint的25%历史实测。精度路径、静态/激活/峰值、有效token累积和完整矩阵FLOPs均记录为后续资源接口；当前2.15文档不能替代历史2.14全行为。",
+    "report_sha256": "416d0f1f123cd7acdb1841c826a0038a27990dcfaea8db18bd1c05bdd6dbf1f1",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch30_clip": {
+    "main_note": "完整报告和30.8原文已读。CLIP/SigLIP损失与梯度、MAC及检索公式未确认算错。CH30-01采纳为概率估计的训练分布和校准范围补充，不能据此说sigmoid不具有二分类概率模型解释；最终优先级应低于公式错误。记录正负采样先验、查询区间/训练种子边界及检索不能替OCR生成的接口。",
+    "report_sha256": "af66a91aa266b955453eec411a4b93aabafdbecc046cf07dc762c827dd5b6a2c",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch17_gpt2": {
+    "main_note": "完整报告已读。GPT-2参数量、Conv1D权重转换方向、QKV切分、LayerNorm epsilon和对拍条件未新增确认问题。对齐torch与HF时区别实现容差、贪心文本和完整logits，Qwen的显式head_dim及模型词表行数是后续资源和VLM章节需要保留的接口。报告联网核对原始OpenAI实现与配置，不把后续模型相似结构当作已做完整前向对拍。",
+    "report_sha256": "31d1acb9bfd1120dcdb8ce51712a52321e8108c090133b94465d95addef1c9c1",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch04_training": {
+    "main_note": "完整报告已读。采纳CH04-01：原子替换提供可见性保证，不能无fsync等条件承诺断电持久性；CH04-02为无害clone的解释错误，不指控现有检查点代码失效。记录0基调度、无动量SGD等价条件、Adam参数状态、按何种单位累积、RNG及数据采样状态。AdamW、初始化和可复现性的已给限定不重复列错。",
+    "report_sha256": "8caa3b2f06df1d9c3ac6e5cb3724d4000363428fefd5661ebc6bfb03ef3545a5",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch31_mini_ocr": {
+    "main_note": "完整报告、实际接口摘要及31.7原文已核对。采纳CH31-01：固定总抽样改变N的多点实验仍使平均重复次数640000/N与N耦合，不能单凭加点声称拆开因素。dots/ldots仅列需逐图核查线索，不把10条历史歧义统计直接判错。记录字节259词表、只在数据端移位、385位置预算和全因果视觉前缀；不同真实VLM队列不可直接排名这一边界章内已声明。",
+    "report_sha256": "a108faa8ba56fedec35d8ad7985d1545ab00636f20eaff1ec5ce620419e33bfe",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch18_prompting": {
+    "main_note": "完整报告及18.5.5、18.9原文已核对。采纳CH18-01为实际报告清单遗漏fix_rate；CH18-02为生成后抽取与生成时约束的机制对应错误。记录postcorrect-v1、原串clean/noisy分母、copy的fix_rate可因空格规范化非零、raw/抽取评分和空think块提示边界。32768与40960暂保留字段语义待核，不直接指控版本数字错误。",
+    "report_sha256": "57a2511d5a3287d96e7106c893f0abdb214d03bd1fec33e361addf04199facf5",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch32_real_vlm": {
+    "main_note": "完整报告已读，processor排列、M-RoPE位置和参数口径未确认新增P1/P2。CH32-01保留为连接器压缩范围的P3澄清，须限定视觉塔输出固定后；模型混合层型和面积预算例外本章已有说明。记录32到33的候选/队列/预算变更及baseline重算要求，等全部章节完成后核查其协议链。",
+    "report_sha256": "c67fab55109fa64c27e6867fce5d999e27f7e7406b32d1f9aba206af0e26ceef",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch19_sft": {
+    "main_note": "完整报告已读。唯一一次因果移位、按位置屏蔽pad/EOS、答案有效token总分母和同精度重跑基线未确认新增问题。记录空think属于prompt、prompt不计目标但仍获间接梯度、超长训练整条拒收而生成保留等协议。漏EOS仍有非终止位置的softmax竞争，仅记措辞边界，不据此否定历史80步实验解释。",
+    "report_sha256": "9d0a220e9e0b4923fbc624584b6b24a28d249d54af620c12c3562a41a0c8bd16",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch05_generalization": {
+    "main_note": "完整报告已读并对CH05-01发回语义复核。现已降P3：原文才算只给必要条件，前文有提高方向，不能误判为排除0就是充分条件；编辑建议写明正向差区间下界大于0。本章已明确来源组相关、配对可能负相关、有限模拟及CE选点限制。记录R1建集抽查与冻结后只汇总的阶段接口，留待全部报告后核对，不预先认定数据泄漏。",
+    "report_sha256": "2459689b21a095cdf60070b650c7556200748a12f1cb9a38aa55eceed142a85b",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch33_vlm_lora": {
+    "main_note": "完整报告已读。CH33-01采纳为需显式限定本次点估计的统计表述，不能把未检出差异读成总体非劣已证；CH33-02的负协方差反例成立，配对样本量不能无条件更少。记录主实验r16与补充r32、停止符修复历史/现代码、500val与100test、bf16基座/fp32LoRA及merger例外，既有标点与预算差异已披露。",
+    "report_sha256": "3ec8edf51e645b91177fd2f5e76778fa4c81e8358dcc3f13b8e1efc52682c230",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch20_lora": {
+    "main_note": "完整报告及20.10原文已读。CH20-01采纳为有限对拍不能反推唯一计算路径的证据表述问题；不否定本章实际实现确实先Ax后B，最终可按措辞问题处理。LoRA秩/缩放、B零初始化及对称方案、Qwen投影尺寸和静态状态账自洽。记录与第19章的val前200重统计、固定alpha/r及扫描面板未全列fix_rate的已披露缺口。",
+    "report_sha256": "9e5730967781424332408b8f719d9c00f8be76f353b60e8508a6bb198db3ea9c",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch06_tokenization": {
+    "main_note": "完整报告已读，BPE合并顺序、预分词边界、字节往返和特殊token实现未新增确认错误。记录评测有损token与模型无损token、bits/byte的共同原文/预测范围/特殊符号分母约定。Qwen大JSON仅获取文件指针、内部词表统计未独立复核，保留明确核查边界。56行转述第0章是否过度概括待最后结合面板逐字裁定。",
+    "report_sha256": "3af47f3b5348821b3d0fabb797a7454d716e2e078d410bb60f564748d231bfea",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch34_vlm_grpo": {
+    "main_note": "完整报告已读。采纳CH34-01完美转写得分非奖励上界、CH34-02边缘parse比例不证明逐样本忠实；CH34-03是CH00-01同根因在奖励里的传播，最终须合并而非重复计独立缺陷。主审核此前CPU已复核sin+h/sinh得到EM假、距离0、tier2/0.5。修复距离单位时分母与阈值也需一致并新建协议，旧历史结果不事后改写。",
+    "report_sha256": "1bf4d8a68e860e6774d91f1bc58edfcbaccbb697254db2de28aba7e861a18b70",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch07_lm_basics": {
+    "main_note": "完整报告已读，计数、加k平滑、唯一移位、NLL/字节换算未新增确认错误。EOS计loss不计字节与第6章unigram不含EOS的差异已明确，不先判为指标矛盾。记录BOS预测类别屏蔽的后续变化，以及teacher forcing机制已讲但术语指引可补的轻微事项；转义花括号实现已处理，不采用无效反例。",
+    "report_sha256": "b4eb5c246b1041ed645f1f1b276db44c1370d3b7483bb2459be824b08183d8f5",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch21_trl_sft": {
+    "main_note": "完整报告已读。CH21-01采纳为可补齐面板的P3建议：129−(59−6)=76，fix_rate=76/141；未记录不等于无法恢复，不指控计算错。真实collator标签路径和统一有效token分母有固定tag源码核查；手动同优化器loss对拍不等于Trainer正式训练全循环等价。copy-only7条由已有val重算确认，排除一般分组恒等式误用的疑点。",
+    "report_sha256": "e57138f42c63a543bb309d5d546b2b0f9aef6ff0e280437c93815e4fbb4d9920",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch35_distill": {
+    "main_note": "完整报告已读。采纳CH35-01：低EM不足以逻辑阻止CER上的训练设置比较，正文已给seed35显著不利差异；无法归因标签质量来自组成混杂及跨种子不稳定，应改因果理由。T平方梯度推导、异词表需要额外对齐、主/补充教师变化及有限曝光挤占均已明确。记录伪标签质检依赖训练真值而非无标注蒸馏，以及T平方只为固定温度下近似梯度尺度补偿。",
+    "report_sha256": "6600da0737610eb8310c150540562ac2ab25bfc284e59073f8be7020365c2018",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch08_attention": {
+    "main_note": "完整报告及8.7.4原文已读。采纳CH08-01为有限负mask值的dtype条件缺失：−1e9不适用于fp16，当前fp32演示本身成立；修正须同时说明全遮行输出无意义且不计loss。记录True=允许、键mask广播、矩形cache对齐、显式注意力成本、SDPA异常全遮行行为，以及中间softmax与最终CE梯度的不同变量范围。",
+    "report_sha256": "5a6a31a979d976a7a6c200a5d42381a288bdcf74b5cf496bac6b57e82b67e5e2",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch22_eval": {
+    "main_note": "完整报告和22.6原文已核对，并要求收窄CH22-01：确认问题是601标题及归因过强，623在明确假设模板内仅属待检验预测，不指控作者已确认32条结果。CH22-02由本地解析与官方文档反证text/left普遍不支持的说法。统计主线已有paired/cluster、小支持量与多比较边界；基座污染差值是否抵消仅留待证，不据此声称发生实际污染。",
+    "report_sha256": "1a199ace0cb50ae3eba1713655cc20ac05db6914c5820323a32f4f90f81f6b94",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch36_reports": {
+    "main_note": "完整报告已读。四份固定版本技术报告关键结构、训练和结果转述经subagent联网核查，未确认P1/P2。记录R4分任务和共同队列规则、32/33预算差、34仅起点test与35仅original test。0.8B/0.9B命名解释仅猜测且计数舍入不足，列后续澄清；DPO beta和25章小不一致对证据等待全部报告完成后统一裁定。",
+    "report_sha256": "566f9339de1dfc3263e6c425b267b715825660176371e10330a487e582ca50d1",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch09_block": {
+    "main_note": "完整报告已读。采纳CH09-01：差于unigram不反证完全未使用上文，与261行已标待验证解释应一致；CH09-02为TrOCR原始任务范围澄清，不否定其Encoder-Decoder架构可改作公式OCR。记录Pre/Post-Norm、fp32归约、SwiGLU参数取整、视觉前缀非cross-attention等接口，残差与性能比较已有条件不重复列错。",
+    "report_sha256": "19f1482a3120313633cbbc4140a94890a60b6011cdd84ad26d72ec5ca8248852",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "a_distributed": {
+    "main_note": "完整报告已读。采纳APPA-01：四条所谓完整数值等价条件还需对应随机运算结果一致，分布等价与单次梯度相等不同。固定全局batch下激活减少已明确，作为第16章DDP资源表述的待对照约定。16字节/参与临时聚合账是声明过的教学模型，不报所有真实框架例外。",
+    "report_sha256": "e871e4d14bcccfa56a22788caa4ac7dbfdaf646c99aff5d4d05a10fd699ed279",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch23_dpo": {
+    "main_note": "完整报告已读。CH23-01采纳P3：自动编辑指标和总体均长相近不能证明没有条件长度偏好。BT、KL最优解、DPO梯度及参考分支主线成立；理论beta和有限步行为需区分。登记合并bf16起点与ch22未合并基线的精度路径待查，以及偏移2048不保证目标未见、keep_start截断需统计，暂不声称收益已被精度解释或实际发生污染。",
+    "report_sha256": "401275c4c79a579f1a68f71be2d8625ea4dfbba0476676c3c70849b8fd2ef459",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "b_flash_attention": {
+    "main_note": "完整报告已读。online softmax、IO及FLOP计数未确认新增P1/P2；safe_m只处理整块全遮，任意mask整行全遮的l=0属于未承诺扩展边界，当前因果mask每行可见自身，不报已示实验失败。记录数学精确/浮点容差、CPU教学计数/真实GPU性能及重算/保存峰值区分。",
+    "report_sha256": "b5362501699db33efe2a5d7603764ce18a0c2daab44ae8853868f1419cab29fa",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "c_quantization": {
+    "main_note": "完整报告已读，线性量化误差界、GPTQ补偿及AWQ缩放公式未新增确认P1/P2。代码已处理全零scale，不报遗漏；int4教学误差不等NF4、浮点存整数不省空间、校准小矩阵不代表真实模型均已声明。4bit合并风险需与第20章高精度合并再量化的路径区分，保留条件澄清。",
+    "report_sha256": "70794516ebf97016d86735c2b3d1f0ab24df8ed7b43d793074cbd12e443d39f2",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch10_rope": {
+    "main_note": "完整报告已读。RoPE相对点积、配对、PI和base公式未确认错误；CH10-01采纳为按token报告缺少受影响目标分桶的P3建议，64.2%短公式不等于其余目标权重可忽略，统计为24940/119750约20.83%。不据此声称模型已通过强外推，也不把已主动说明的off-by-one与非单调远程行为重复列错。",
+    "report_sha256": "5b98839ec05e2e6f8dd787779bdc5dc9db0338323cefd2779b7592956e13caba",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "d_vllm": {
+    "main_note": "完整报告已读，分块碎片、静态/连续批处理和当前官方LoRA服务语法未确认P1/P2。模拟步数非延迟、整批返回为显式假设。base/adapter贪心文本必须不同只能作加载排查线索，微小LoRA可只改变logits；最终部署对拍应验证适配器配置、参数和数值，而非必改文本。",
+    "report_sha256": "31ff2dc1620326d000a1f54efb3751ca15b086c2cc05d9d8c7ae97581a1cc435",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch24_rl_basics": {
+    "main_note": "完整报告及24.8原文已读。采纳CH24-01：不可导评分不能排他推出只能在线RL，评分可用于候选筛选、偏好构造或蒸馏监督。策略梯度、基线、KL估计值/反向梯度区别和PPO裁剪推导未确认算错。记录序列logprob求和、含自己基线偏差及采样分布条件，等待全部章节完成后与DPO/GRPO比较学习路径。",
+    "report_sha256": "e51f8595f3996b7c16f83c45b89460f15a1630c5e58610a16faff2008dbb9ef2",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "e_profiling": {
+    "main_note": "完整报告已读。CPU profiler受控慢点、算术强度和时间/保存量口径未确认P1/P2。CPU总时间/自身时间需与设备异步时间分列，CUDA同步和profiler开销均需按实际设备测量，不能将本章CPU rank/线程结果当GPU瓶颈。记录首步初始化、重算和吞吐的性能证据边界。",
+    "report_sha256": "85a6c1cb25b5fdd9f1065e8d70778f23c6e9a0a026f904fd8780a67eab62c21b",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  },
+  "ch11_gpt": {
+    "main_note": "完整报告已读。参数量、weight tying、loss_mask与标签不原地改写未新增确认错误。训练BOS参与softmax类别、验证排除BOS的分布区别已在195至208行明确说明，不报未披露冲突。记录GPT数据端shift、逐公式滑窗目标/字节分母、共享权重初始化尺度及真实Qwen显式head_dim，不能将标准MHA公式机械套到GQA/混合模型。",
+    "report_sha256": "2d9f7772e7dca137f3f047b3d889ab9684295ec7804476f9e40caae38fd7ba60",
+    "cross_review": "completed",
+    "cross_review_report": "cross-chapter-review.md"
+  }
+}

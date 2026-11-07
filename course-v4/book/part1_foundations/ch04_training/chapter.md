@@ -906,7 +906,7 @@ def rng_state(generators=None):
     }
 ```
 
-PyTorch 程序里通常同时存在好几个随机数生成器：Python 自带的 `random`、NumPy 的、PyTorch CPU 上的全局生成器、每块 GPU 上各一个，再加上你自己建的 `torch.Generator`。你用到了哪个、哪个就要存。存的时候 `clone()` 一份，否则之后再抽随机数，记录下来的状态可能跟着变。`set_rng_state` 做相反的事情，把它们一个个放回去。
+PyTorch 程序里通常同时存在好几个随机数生成器：Python 自带的 `random`、NumPy 的、PyTorch CPU 上的全局生成器、每块 GPU 上各一个，再加上你自己建的 `torch.Generator`。你用到了哪个、哪个就要存。这些接口返回的本来就是独立的状态快照，之后再抽随机数不会改动它；这里额外 `clone()` 一份只是防御性拷贝，无害。`set_rng_state` 做相反的事情，把它们一个个放回去。
 
 再看保存和加载（练习 4.6）：
 
@@ -936,7 +936,7 @@ def load_checkpoint(path, model, optimizer=None, generators=None, map_location="
 
 几点说明：
 
-- **先写临时文件，再改名。** 如果直接写到 `path`，写到一半断电，旧的检查点已经被覆盖，新的又不完整，两个都没了。`os.replace` 在同一个文件系统上是原子操作：要么完全是旧文件，要么完全是新文件。
+- **先写临时文件，再改名。** 如果直接写到 `path`，进程写到一半崩溃或被杀，旧的检查点已经被覆盖，新的又不完整，两个都没了。`os.replace` 在同一个文件系统上是原子操作：其他进程看到的要么是完整的旧文件，要么是写完的新文件。注意这只是名字切换的原子性，不是断电持久性：`torch.save` 和改名返回后，数据和目录项可能还在操作系统缓存里，系统掉电时仍可能丢失。真要防断电，还需对临时文件和所在目录分别 `fsync`（并依赖文件系统和硬件的配合），本书的实现没有做这一步（见 13.4.5 节）。
 - **`_optimizer_state` 兼容两种优化器**：`torch.optim` 的优化器有 `state_dict()`；本书自己写的优化器把状态放在 `opt.state` 里，配置放在 `lr`、`b1`、`b2`、`eps`、`weight_decay`、`decoupled`（SGD 是 `momentum`）这些属性里，两样都深拷贝下来，加载时一并恢复。只存状态不存配置的话，用非默认配置训练、加载时用默认配置重建优化器，续训会悄悄换成另一个算法，而且不报错。
 - **`weights_only=False`** 允许加载任意 Python 对象（比如 Python 随机数的状态元组），代价是它会执行文件里的 pickle 代码。**只用它加载你自己保存的文件。** 从网上下载的模型权重要用 `weights_only=True`。
 - **`step` 的约定**：保存的是已经完成了多少步。4.1 节的循环里第 0 到第 cut − 1 步做完以后保存 `step=cut`，续训就从 `range(cut, total)` 开始。差一的错误在这里很常见，测试会抓住它。

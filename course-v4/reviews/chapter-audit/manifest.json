@@ -1,0 +1,390 @@
+{
+  "baseline_commit": "47e910294b04a15530b9cb66b18240a7f1b262ab",
+  "scope": "37 章正文和 5 篇附录的 chapter.md。实验手册、代码和外部资料作为核查证据。",
+  "phase": "审核完成",
+  "chapters": [
+    {
+      "id": "ch00_intro",
+      "source": "course-v4/book/ch00_intro/chapter.md",
+      "source_sha256": "9c12bff3715acb53f4062cb7d9583edfd66c46b07d75bcee274cf582cba1b0de",
+      "line_count": 1222,
+      "worker": "foundations_lm",
+      "report": "chapters/ch00_intro.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch01_tensors",
+      "source": "course-v4/book/part1_foundations/ch01_tensors/chapter.md",
+      "source_sha256": "c167c91515825282467ba5d0c2794bb21d52c7322e7eb33b52541cd9552186ef",
+      "line_count": 846,
+      "worker": "foundations_lm",
+      "report": "chapters/ch01_tensors.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch02_backprop",
+      "source": "course-v4/book/part1_foundations/ch02_backprop/chapter.md",
+      "source_sha256": "1f18805c3ebbc52a576b2ab4e0de8519d26e98a6d15ee2b8c74d1396c4541cff",
+      "line_count": 1652,
+      "worker": "foundations_lm",
+      "report": "chapters/ch02_backprop.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch03_softmax_ce",
+      "source": "course-v4/book/part1_foundations/ch03_softmax_ce/chapter.md",
+      "source_sha256": "b20330ec200293d095fb024491645ced0b42ab596a1c3dd8d39b444cae3e741a",
+      "line_count": 1602,
+      "worker": "foundations_lm",
+      "report": "chapters/ch03_softmax_ce.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch04_training",
+      "source": "course-v4/book/part1_foundations/ch04_training/chapter.md",
+      "source_sha256": "94f73e91657f823579c8eb50c4d5019cae55ff9f0e3a0429a5375d0f5a0b4d60",
+      "line_count": 1222,
+      "worker": "foundations_lm",
+      "report": "chapters/ch04_training.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch05_generalization",
+      "source": "course-v4/book/part1_foundations/ch05_generalization/chapter.md",
+      "source_sha256": "030fec4c3e41490fa3c2fbffa375e2a16844f5e6574715a59da470c9505f41fc",
+      "line_count": 920,
+      "worker": "foundations_lm",
+      "report": "chapters/ch05_generalization.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch06_tokenization",
+      "source": "course-v4/book/part2_lm/ch06_tokenization/chapter.md",
+      "source_sha256": "05391f73bdb77597cecd710fc1709e44d8b3ead27248bbfe13d3d3be3e8a7cc8",
+      "line_count": 933,
+      "worker": "foundations_lm",
+      "report": "chapters/ch06_tokenization.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch07_lm_basics",
+      "source": "course-v4/book/part2_lm/ch07_lm_basics/chapter.md",
+      "source_sha256": "13eddd87976533167fd40dd12f082dd4c1b5a8bc15c0c9d98ebec3d50ffec52b",
+      "line_count": 677,
+      "worker": "foundations_lm",
+      "report": "chapters/ch07_lm_basics.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch08_attention",
+      "source": "course-v4/book/part2_lm/ch08_attention/chapter.md",
+      "source_sha256": "d29d0d5558afaece2beaf1b9ee04e1bb09fd190d5520a6fde8f0d81e307aba3a",
+      "line_count": 1078,
+      "worker": "foundations_lm",
+      "report": "chapters/ch08_attention.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch09_block",
+      "source": "course-v4/book/part2_lm/ch09_block/chapter.md",
+      "source_sha256": "56596975785b2a68368589ca582e3b09b705d044c6ab206d3967d82b3aa649d7",
+      "line_count": 916,
+      "worker": "foundations_lm",
+      "report": "chapters/ch09_block.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch10_rope",
+      "source": "course-v4/book/part2_lm/ch10_rope/chapter.md",
+      "source_sha256": "636859ba9a6da13d3afdac5e473782bf924078f7e15cff52f794bcdc746e0811",
+      "line_count": 823,
+      "worker": "foundations_lm",
+      "report": "chapters/ch10_rope.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch11_gpt",
+      "source": "course-v4/book/part2_lm/ch11_gpt/chapter.md",
+      "source_sha256": "99e38dd9df8ad0e6827a193feb6782f643dfb702b7d00584fb0aa8986f522385",
+      "line_count": 976,
+      "worker": "foundations_lm",
+      "report": "chapters/ch11_gpt.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch12_pretrain_data",
+      "source": "course-v4/book/part2_lm/ch12_pretrain_data/chapter.md",
+      "source_sha256": "e7a5e25345c2620794dd2999e3fa39b272742d4189c3a80b91eb10047f96e82b",
+      "line_count": 917,
+      "worker": "data_posttraining",
+      "report": "chapters/ch12_pretrain_data.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch13_pretraining",
+      "source": "course-v4/book/part2_lm/ch13_pretraining/chapter.md",
+      "source_sha256": "72f3678917dab1233545260f495eb31eea7b2626b3f9f35b849aacaa06af874c",
+      "line_count": 988,
+      "worker": "data_posttraining",
+      "report": "chapters/ch13_pretraining.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch14_decoding",
+      "source": "course-v4/book/part2_lm/ch14_decoding/chapter.md",
+      "source_sha256": "da4ab2afbd72ca22d03c0e600bd049fbf0510485df711ce78146dac25ec84b93",
+      "line_count": 731,
+      "worker": "data_posttraining",
+      "report": "chapters/ch14_decoding.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch15_kvcache",
+      "source": "course-v4/book/part2_lm/ch15_kvcache/chapter.md",
+      "source_sha256": "570503d8a62fe8d9e203207306952273be06b80fe70f2b64f404a6f8bfc6816d",
+      "line_count": 740,
+      "worker": "data_posttraining",
+      "report": "chapters/ch15_kvcache.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch16_training_engineering",
+      "source": "course-v4/book/part2_lm/ch16_training_engineering/chapter.md",
+      "source_sha256": "107960984ccaceb62e3dd360c42ed44b828683813eb08cefc9634d69691411cc",
+      "line_count": 1135,
+      "worker": "data_posttraining",
+      "report": "chapters/ch16_training_engineering.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch17_gpt2",
+      "source": "course-v4/book/part3_post_training/ch17_gpt2/chapter.md",
+      "source_sha256": "39c73bc8258ff0ef7edd0a62b37badaaf47033b59b4b60a4890652d27199d0c7",
+      "line_count": 673,
+      "worker": "data_posttraining",
+      "report": "chapters/ch17_gpt2.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch18_prompting",
+      "source": "course-v4/book/part3_post_training/ch18_prompting/chapter.md",
+      "source_sha256": "990571ea75a6a8a806b8de1f4fe163312e64e431ae862c0cf82fef85ffbf3f44",
+      "line_count": 495,
+      "worker": "data_posttraining",
+      "report": "chapters/ch18_prompting.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch19_sft",
+      "source": "course-v4/book/part3_post_training/ch19_sft/chapter.md",
+      "source_sha256": "91988c654c1941ab8851ec3db99eb65d4eb160db7b12cdaaf299fd07b1c1a83d",
+      "line_count": 963,
+      "worker": "data_posttraining",
+      "report": "chapters/ch19_sft.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch20_lora",
+      "source": "course-v4/book/part3_post_training/ch20_lora/chapter.md",
+      "source_sha256": "f4654241e18a272c295213ec7411d61faebe54911a58f1c284f08fe637fee69b",
+      "line_count": 922,
+      "worker": "data_posttraining",
+      "report": "chapters/ch20_lora.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch21_trl_sft",
+      "source": "course-v4/book/part3_post_training/ch21_trl_sft/chapter.md",
+      "source_sha256": "166a59c63379e4ad09655170beb07807df62bc4a1dab85af28312ef9baad538a",
+      "line_count": 894,
+      "worker": "data_posttraining",
+      "report": "chapters/ch21_trl_sft.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch22_eval",
+      "source": "course-v4/book/part3_post_training/ch22_eval/chapter.md",
+      "source_sha256": "a461b7fdddbc1c99bd75fe483621756c6ac49f36feed4e5f1efe075718c858c8",
+      "line_count": 814,
+      "worker": "data_posttraining",
+      "report": "chapters/ch22_eval.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch23_dpo",
+      "source": "course-v4/book/part3_post_training/ch23_dpo/chapter.md",
+      "source_sha256": "1b6e883b6e89c90722d9dcbbad4b72a438ca755f01b86d2f08408dbe42c2db88",
+      "line_count": 823,
+      "worker": "data_posttraining",
+      "report": "chapters/ch23_dpo.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch24_rl_basics",
+      "source": "course-v4/book/part3_post_training/ch24_rl_basics/chapter.md",
+      "source_sha256": "c666fc6bd2fc1043dfc917799cc14f8fad7be393cb9779f79bce174ed043b967",
+      "line_count": 857,
+      "worker": "data_posttraining",
+      "report": "chapters/ch24_rl_basics.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch25_grpo",
+      "source": "course-v4/book/part3_post_training/ch25_grpo/chapter.md",
+      "source_sha256": "72ec6cb577a04fd291ba6421c7f1698362cfdeb3b274c4719255a7ecaff54ed4",
+      "line_count": 938,
+      "worker": "vision_appendices",
+      "report": "chapters/ch25_grpo.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch26_multimodal",
+      "source": "course-v4/book/part4_vlm/ch26_multimodal/chapter.md",
+      "source_sha256": "f4202391b43ee0965b235e77cea342775cb40c11f8402761fba50fd4e570512e",
+      "line_count": 687,
+      "worker": "vision_appendices",
+      "report": "chapters/ch26_multimodal.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch27_image_tensors",
+      "source": "course-v4/book/part4_vlm/ch27_image_tensors/chapter.md",
+      "source_sha256": "aa10086d0d31af16e20f94a5fd8b5e44a6c3a164385720f90a58979283e6aa6e",
+      "line_count": 713,
+      "worker": "vision_appendices",
+      "report": "chapters/ch27_image_tensors.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch28_cnn",
+      "source": "course-v4/book/part4_vlm/ch28_cnn/chapter.md",
+      "source_sha256": "ff7ee96e1d1804a745472db1cfd0ea4d57afd879e5e9f75bd4c143f42e8e1265",
+      "line_count": 994,
+      "worker": "vision_appendices",
+      "report": "chapters/ch28_cnn.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch29_vit",
+      "source": "course-v4/book/part4_vlm/ch29_vit/chapter.md",
+      "source_sha256": "42545464990e945dd2e6615078adda775cf3ebefec3f18375ba679071b1cc9f5",
+      "line_count": 950,
+      "worker": "vision_appendices",
+      "report": "chapters/ch29_vit.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch30_clip",
+      "source": "course-v4/book/part4_vlm/ch30_clip/chapter.md",
+      "source_sha256": "55e1b016817abd066197873f7d916d4b4b33500cb5f854a04ff65881c405be31",
+      "line_count": 997,
+      "worker": "vision_appendices",
+      "report": "chapters/ch30_clip.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch31_mini_ocr",
+      "source": "course-v4/book/part4_vlm/ch31_mini_ocr/chapter.md",
+      "source_sha256": "6f5d39d3f4e55430e882e54646690a551ce344abcecde99486deb5ba10fc1290",
+      "line_count": 886,
+      "worker": "vision_appendices",
+      "report": "chapters/ch31_mini_ocr.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch32_real_vlm",
+      "source": "course-v4/book/part4_vlm/ch32_real_vlm/chapter.md",
+      "source_sha256": "d5e19dbe99f93b874eca38858ed41d93f105bca500265d7f889489cd88c544ce",
+      "line_count": 1161,
+      "worker": "vision_appendices",
+      "report": "chapters/ch32_real_vlm.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch33_vlm_lora",
+      "source": "course-v4/book/part4_vlm/ch33_vlm_lora/chapter.md",
+      "source_sha256": "2ba1f91c7f04097ebade4220007fa7041e3e0a04d5541a6f22e44ae2f8468d08",
+      "line_count": 993,
+      "worker": "vision_appendices",
+      "report": "chapters/ch33_vlm_lora.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch34_vlm_grpo",
+      "source": "course-v4/book/part4_vlm/ch34_vlm_grpo/chapter.md",
+      "source_sha256": "92bdbc9f906d6a4ffa13d24c3dedb06da1e21cd9d8759d29f9ac26dbfad9aef2",
+      "line_count": 796,
+      "worker": "vision_appendices",
+      "report": "chapters/ch34_vlm_grpo.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch35_distill",
+      "source": "course-v4/book/part4_vlm/ch35_distill/chapter.md",
+      "source_sha256": "4438c924fd4af8d50b2a0d880dd89637e7ef3d014d6686afbf72dbbfa49c496b",
+      "line_count": 981,
+      "worker": "vision_appendices",
+      "report": "chapters/ch35_distill.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "ch36_reports",
+      "source": "course-v4/book/part4_vlm/ch36_reports/chapter.md",
+      "source_sha256": "7b9654c285531856fb0c7e9b883c1f01cfb6fec9f2fcded41d34814325f2690f",
+      "line_count": 605,
+      "worker": "vision_appendices",
+      "report": "chapters/ch36_reports.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "a_distributed",
+      "source": "course-v4/book/appendix/a_distributed/chapter.md",
+      "source_sha256": "a55c52d64f9cd04091ecbe04a4831e4143947a72c6b322fe766445870c765e95",
+      "line_count": 225,
+      "worker": "vision_appendices",
+      "report": "chapters/a_distributed.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "b_flash_attention",
+      "source": "course-v4/book/appendix/b_flash_attention/chapter.md",
+      "source_sha256": "438156e9bcedb40c252875f432dedbc7f9b16be393ca6187a4e92894da9ec657",
+      "line_count": 229,
+      "worker": "vision_appendices",
+      "report": "chapters/b_flash_attention.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "c_quantization",
+      "source": "course-v4/book/appendix/c_quantization/chapter.md",
+      "source_sha256": "b3e128f827e098788c1123478759c4009bc9c7e3d8863179c8e4bd8ec8e1eeac",
+      "line_count": 226,
+      "worker": "vision_appendices",
+      "report": "chapters/c_quantization.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "d_vllm",
+      "source": "course-v4/book/appendix/d_vllm/chapter.md",
+      "source_sha256": "3dc42bbcd9f150df9e7945c8fdd46ac6bb3a5c7660680ebbff5b30eb9fc18701",
+      "line_count": 233,
+      "worker": "vision_appendices",
+      "report": "chapters/d_vllm.md",
+      "status": "chapter_reviewed"
+    },
+    {
+      "id": "e_profiling",
+      "source": "course-v4/book/appendix/e_profiling/chapter.md",
+      "source_sha256": "6ef2c12061d01f436fce3abdf75a8fe76c36d90409087fc0ea7f7d4ca87ef306",
+      "line_count": 218,
+      "worker": "vision_appendices",
+      "report": "chapters/e_profiling.md",
+      "status": "chapter_reviewed"
+    }
+  ],
+  "chapter_review_completed": 42,
+  "source_total_lines": 35651,
+  "completed_date": "2026-11-07",
+  "cross_chapter_review_completed": true,
+  "source_hash_verified": 42
+}

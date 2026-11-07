@@ -116,6 +116,8 @@ val 全集的实际统计（本项目观察，tour 第 1 部分，5,001 条）�
 | fix_rate | 在**输入有错**的样本里，EM_norm 的比例 | 错的改回来了多少？ |
 | 可解析率 | 预测能被 mathtext 解析的比例 | 语法过不过关？ |
 
+CER 有一个要记住的局限：`normalize_latex` 先把公式切成 token，算字符距离时又把 token 无分隔地拼回去，命令边界随之丢失。例如 `\sin h(x)`（sin 作用于 h(x)）和 `\sinh(x)`（双曲正弦）EM_norm 判为不同，字符距离却是 0（token 距离是 2）。所以本章的 CER 是一个会碰撞的代理距离：EM_norm 以及基于它的改坏率、fix_rate 不受这类碰撞影响，CER 则可能低估这类错误。碰撞在本章数据上实际出现多少尚未统计；第 23 章用 CER 给候选排序时这个问题会被放大。
+
 每个比例都给出成功数、分母和 Wilson 95% 区间；CER 给固定种子、1000 次重抽的 bootstrap 区间。改坏率的分母只是无错样本，样本少时分母可能是 0，这时函数返回 `None`，不是 0。
 
 本章 18.5.2、18.5.4 节的表报全了四个必报项。18.6 节的小实验只列要讨论的几项：18.6.4 节没有列 fix_rate，18.6.5 节没有列改坏率和 fix_rate。
@@ -326,7 +328,7 @@ tour 第 4 部分把同样的指令和同样的 3 条 train 示例，分别包�
 - 数据：`postcorrect-v1`、噪声 seed、评测子集（val 前多少条；本章 GPU 运行是 2000 条）。
 - 方法：模型快照、提示常量名、调用方式（chat 模板、`enable_thinking=False`）、示例来源和数量。
 - 解码：贪心，生成上限规则。
-- 指标：EM_norm、CER、改坏率（带分母）、可解析率，都带区间；注明是否经过抽取器。
+- 指标：四个必报项 EM_norm、CER、改坏率（分母是原串无错的样本数）、fix_rate（分母是原串有错的样本数），都带区间；可解析率是可选诊断；注明是否经过抽取器。
 - 成本：设备、dtype、批大小、平均提示与生成 token、每条用时（GPU 若与别的任务共享，要注明用时不可比）。
 - 对照：同一子集上照抄和标准答案的分数。
 
@@ -467,7 +469,7 @@ EM_norm 和改坏率三者几乎一样；CER 却明显分成两档：第三条�
 |---|---|
 | `render_chat`（`apply_chat_template`） | Hugging Face transformers 的 chat template；vLLM、SGLang 的 OpenAI 兼容接口在服务端做同样的事，`enable_thinking` 可以通过请求参数传入（依据 Qwen3 模型卡；具体参数写法随版本变化，待验证） |
 | `generate_greedy` | `model.generate(do_sample=False)`；推理服务里对应 `temperature=0` |
-| `extract_formula` | 结构化输出 / JSON 模式 / 约束解码，从生成阶段就限制格式 |
+| `extract_formula` | 输出解析器（output parser）/ 后处理：在生成完成后清洗字符串，可能删错内容（18.6.1 节）。结构化输出 / 约束解码则在生成阶段限制可选 token，可以替代一部分格式清洗，但不保证内容正确 |
 | `score_postcorrect` + `evaluate` | lm-evaluation-harness、OpenCompass 等评测框架：固定数据、固定提示模板、固定解码、统一打分 |
 | `few_shot_pool` | 评测框架里的 `num_fewshot` 和示例来源（通常是 train 或专门的 dev 划分） |
 | 照抄与标准答案锚点 | 评测报告里的 "random / majority baseline" 与 "human performance" 行 |

@@ -183,6 +183,8 @@ for j in range(0, N, Bc):
 return o/l.unsqueeze(-1)
 ```
 
+最后的 `o/l` 默认每行至少有一个可见的 key。本附录只用因果 mask，每个位置至少能看见自己，所以 l 不会是 0；若换成任意 mask，整行全被挡住时 l = 0，要先约定这种行输出什么（例如全 0），再与 SDPA 对拍。
+
 更新函数对应 B.3.1 的公式：
 
 ```python
@@ -213,7 +215,7 @@ return m_new, alpha*l_old+weights.sum(-1), alpha.unsqueeze(-1)*o_old+weights @ v
 - 分块注意力用 online softmax，每行只留 m、l、o 三个量，不把 S、P 写回显存。最大值从 m_old 变成 m_new 时，旧的 l 和 o 都要乘 α = exp(m_old − m_new)，最后输出 o / l。输出和标准注意力一致，float64 下差在 10⁻¹⁵ 以内。
 - 本书的计数模型里，标准访问 4ND + 4N²，分块访问 2ND + 2N²D/Bᵣ（多出来的是 K、V 被每个外层块重读）。块越大访问越少，块太小反而比标准更多。
 - FLOPs 的主项都是 4N²D。它省的是显存访问，不是计算量。
-- 反向要靠重算，直接用 autograd 拿不到这份节省。
+- 在不保存完整 P 的这条路线里，反向要靠重算；直接用 autograd 拿不到这份节省。
 - 最常见的错误：换最大值时忘了乘 α；整块被 mask 挡住时 m 仍是 −inf，不处理就出 NaN。
 
 ## B.8 精读

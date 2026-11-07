@@ -34,7 +34,7 @@ def rng_state(generators=None):
         "torch"： torch.get_rng_state()（CPU 上的全局生成器，一个 uint8 张量）
         "cuda"：  torch.cuda.get_rng_state_all()（没有 CUDA 时为 None）
         "generators"：{名字: g.get_state()}，generators 是 {名字: torch.Generator}，可以为 None
-    返回的张量都要 clone，之后再抽随机数也不会改动这份记录。"""
+    get_rng_state 本身返回独立快照，这里再 clone 一次只是防御性拷贝。"""
     return {
         "python": random.getstate(),
         "numpy": np.random.get_state(),
@@ -80,7 +80,8 @@ def save_checkpoint(path, model, optimizer, step, generators=None, extra=None):
     """把训练状态写进 path。内容是一个 dict：
         {"model": model.state_dict(), "optimizer": ..., "step": step, "rng": rng_state(generators), "extra": extra}
     optimizer 可以为 None。先写到 path + ".tmp"，写完再 os.replace 改名：
-    写到一半断电，旧的检查点还在，不会留下一个损坏的文件。"""
+    进程在写到一半时崩溃或被杀，旧的检查点还在。注意这不保证断电后的持久性：
+    那需要对临时文件和所在目录做 fsync，这里没有做（见正文 4.10.3、13.4.5）。"""
     ckpt = {
         "model": model.state_dict(),
         "optimizer": None if optimizer is None else _optimizer_state(optimizer),

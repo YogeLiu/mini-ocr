@@ -42,7 +42,7 @@ profiler 的两个视角：
 
 ### E.3.3 profiler 会改变它要测的东西
 
-每记录一次算子都有开销，所以算子调用越多，被放大得越多。**次数**这一列不受影响，是可靠的线索。一个操作被调用几万次，往往说明有 Python 循环。
+每记录一次算子都有开销，所以算子调用越多，被放大得越多。只要执行路径和步数固定（像本章的训练循环），**次数**这一列就不受影响，是可靠的线索。一个操作被调用几万次，往往说明有 Python 循环。
 
 ### E.3.4 计算受限还是带宽受限
 
@@ -180,7 +180,7 @@ rows = [(e.key, e.cpu_time_total, e.count) for e in prof.key_averages() if e.key
 3. 对最大的 span，按自身时间和次数看算子。
 4. 改完以后不开 profiler，比较每步耗时。
 
-要看内存，加 `profile_memory=True`。要看形状，加 `record_shapes=True`。要定位代码行，加 `with_stack=True`。GPU 上加 `ProfilerActivity.CUDA`，并用 trace 文件看时间线。这些本书没有运行（待验证）。
+要看内存，加 `profile_memory=True`。要看形状，加 `record_shapes=True`。要定位代码行，加 `with_stack=True`。GPU 上加 `ProfilerActivity.CUDA`，并用 trace 文件看时间线；这时 `cpu_time_total` 统计的是主机端耗时，不能直接代表 GPU kernel 耗时，定位 GPU 热点要看设备（CUDA）时间列。这些本书没有运行（待验证）。
 
 ## E.6 常见错误
 
