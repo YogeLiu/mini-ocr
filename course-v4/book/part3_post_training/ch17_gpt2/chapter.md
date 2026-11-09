@@ -141,9 +141,9 @@ n2 = sum(t.numel() for t in model.state_dict().values())
 
 所以
 
-```text
-N = V·d + P·d + L·(12d² + 13d) + 2d          （数学结论）
-```
+$$
+N=Vd+Pd+L(12d^2+13d)+2d\qquad\text{（数学结论）}
+$$
 
 和第 11 章的公式 `N = V·d + L·(4d² + 3df + 2d) + d` 对比一下，先看 d² 项。每块的 12d² 拆成两份：注意力的 q、k、v 和输出投影共 4d²，和你的 GPT 一样；MLP 占 8d²，因为 GPT-2 的 MLP 只有两个矩阵，但中间宽是 4d，2 · d · 4d = 8d²，而你的 SwiGLU 是三个矩阵 3df。
 
@@ -153,17 +153,19 @@ N = V·d + P·d + L·(12d² + 13d) + 2d          （数学结论）
 
 V = 50257，P = 1024，d = 768，L = 12（这些数从 config.json 读出，17.3 节）。
 
-```text
-V·d             = 50257 × 768                 = 38,597,376
-P·d             = 1024 × 768                  =    786,432
-12d²            = 12 × 589,824                =  7,077,888
-13d             = 13 × 768                    =      9,984
-每块            = 7,077,888 + 9,984           =  7,087,872
-L 块            = 12 × 7,087,872              = 85,054,464
-ln_f            = 2 × 768                     =      1,536
-总计            = 38,597,376 + 786,432 + 85,054,464 + 1,536
-                = 124,439,808                                （数学结论）
-```
+$$
+\begin{aligned}
+Vd &= 50257\times768=38{,}597{,}376 \\
+Pd &= 1024\times768=786{,}432 \\
+12d^2 &= 12\times589{,}824=7{,}077{,}888 \\
+13d &= 13\times768=9{,}984 \\
+\text{每块} &= 7{,}077{,}888+9{,}984=7{,}087{,}872 \\
+L\text{ 块} &= 12\times7{,}087{,}872=85{,}054{,}464 \\
+\mathrm{ln\_f} &= 2\times768=1{,}536 \\
+\text{总计} &= 38{,}597{,}376+786{,}432+85{,}054{,}464+1{,}536 \\
+&= 124{,}439{,}808\qquad\text{（数学结论）}
+\end{aligned}
+$$
 
 tour 第 1 部分把这个公式、本章代码的统计、transformers 的统计三者对拍，结果一致（本项目观察）。
 
@@ -242,19 +244,23 @@ fp32 每个参数 4 字节：124,439,808 × 4 = 497,759,232 字节，约 0.50 GB
 
 **LayerNorm。** 对每个 token 的 768 维向量：
 
-```text
-LayerNorm(x) = (x − mean(x)) / √(var(x) + ε) · γ + β
-RMSNorm(x)   =  x / √(mean(x²) + ε) · γ
-```
+$$
+\begin{aligned}
+\operatorname{LayerNorm}(x) &= \frac{x-\operatorname{mean}(x)}{\sqrt{\operatorname{var}(x)+\varepsilon}}\cdot\gamma+\beta \\
+\operatorname{RMSNorm}(x) &= \frac{x}{\sqrt{\operatorname{mean}(x^2)+\varepsilon}}\cdot\gamma
+\end{aligned}
+$$
 
 LayerNorm 多减一个均值、多加一个偏移 β。PyTorch 有现成的 `nn.LayerNorm`，`eps` 要设成 config 里的 1e-5（PyTorch 默认值也是 1e-5，但不要依赖默认值）。
 
 **GELU 的 tanh 近似。** GELU 的精确定义用到误差函数 erf：
 
-```text
-GELU(x)     = x/2 · (1 + erf(x / √2))
-gelu_new(x) = x/2 · (1 + tanh(√(2/π) · (x + 0.044715 · x³)))
-```
+$$
+\begin{aligned}
+\operatorname{GELU}(x) &= \frac x2\left(1+\operatorname{erf}\left(\frac x{\sqrt2}\right)\right) \\
+\operatorname{gelu\_new}(x) &= \frac x2\left(1+\tanh\left(\sqrt{\frac2\pi}(x+0.044715x^3)\right)\right)
+\end{aligned}
+$$
 
 第二行是一个近似，计算上曾经比 erf 便宜。GPT-2 训练时用的是这个近似，所以加载它的权重也必须用这个近似。两者差多少？tour 第 10 部分在 [−5, 5] 上取 10001 个点比较，最大差约 4.7 × 10⁻⁴，出现在 x ≈ −2.7 附近（本项目观察：CPU、float64 网格，tour 第 10 部分）。看着很小，17.8.3 节会看到它对输出的影响。transformers 把这个近似叫 `gelu_new`，把精确式叫 `gelu`，名字很容易搞混。
 

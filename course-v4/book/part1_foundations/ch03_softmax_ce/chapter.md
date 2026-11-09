@@ -416,9 +416,9 @@ logits z  ──softmax──▶  概率 p  ──取正确类别、−ln──�
 
 合起来就是 softmax：
 
-```
-softmax(z)_i = e^{z_i} / Σ_j e^{z_j}
-```
+$$
+\operatorname{softmax}(z)_i = \frac{e^{z_i}}{\sum_j e^{z_j}}
+$$
 
 z 是长度为 C 的向量，输出 p 也是长度为 C 的向量。
 
@@ -428,16 +428,18 @@ z 是长度为 C 的向量，输出 p 也是长度为 C 的向量。
 
 **第 1 步：取指数。**
 
-```
-e^2.0 = 7.3891    e^1.0 = 2.7183    e^0.1 = 1.1052
-和 = 7.3891 + 2.7183 + 1.1052 = 11.2125
-```
+$$
+\begin{aligned}
+e^{2.0} &= 7.3891,\quad e^{1.0} = 2.7183,\quad e^{0.1} = 1.1052 \\
+\text{和} &= 7.3891+2.7183+1.1052 = 11.2125
+\end{aligned}
+$$
 
 **第 2 步：归一化。**
 
-```
-p = [7.3891, 2.7183, 1.1052] / 11.2125 = [0.6590, 0.2424, 0.0986]
-```
+$$
+p = \frac{[7.3891,2.7183,1.1052]}{11.2125} = [0.6590,0.2424,0.0986]
+$$
 
 三个数加起来是 1.0000。模型的意思是："明天下雨的可能是 65.9%，多云 24.2%，晴 9.9%。"（数学结论，第 1 部分）
 
@@ -447,9 +449,9 @@ p = [7.3891, 2.7183, 1.1052] / 11.2125 = [0.6590, 0.2424, 0.0986]
 
 先看一个硬的版本。如果只想要最可能的那一类，可以用 argmax，把最大的位置设成 1，其余设成 0：
 
-```
-argmax 的 one-hot 形式：[2.0, 1.0, 0.1] → [1, 0, 0]
-```
+$$
+\text{argmax 的 one-hot 形式：}\quad [2.0,1.0,0.1]\longrightarrow[1,0,0]
+$$
 
 argmax 有一个致命问题：它是**跳变**的。把 z_1 从 1.0 慢慢加到 2.1，输出一直是 [1, 0, 0]，直到某一刻突然跳成 [0, 1, 0]。在跳变之外它的导数处处为 0，梯度传不回去，模型没法学。
 
@@ -459,40 +461,42 @@ softmax 是 argmax 的"软"版本：最大的那个分得最多，但其他的�
 
 softmax 有几个性质，后面会反复用到。
 
-**性质一：只有差值有意义（平移不变）。** 给所有 logits 加上同一个常数 c，结果不变：
+**性质一：只有差值有意义（平移不变）。** 给所有 logits 加上同一个常数 $$c$$，结果不变：
 
-```
-e^{z_i + c} / Σ_j e^{z_j + c} = (e^c · e^{z_i}) / (e^c · Σ_j e^{z_j}) = e^{z_i} / Σ_j e^{z_j}
-```
+$$
+\frac{e^{z_i + c}}{\sum_j e^{z_j + c}}
+= \frac{e^c \cdot e^{z_i}}{e^c \cdot \sum_j e^{z_j}}
+= \frac{e^{z_i}}{\sum_j e^{z_j}}
+$$
 
-分子分母都多了一个 e^c，约掉了。实验脚本第 1 部分给 z 加了 100，softmax 的结果仍然是 [0.6590, 0.2424, 0.0986]（数学结论）。3.3 节的数值稳定写法就建立在这条性质上。
+分子分母都多了一个 $$e^c$$，约掉了。实验脚本第 1 部分给 $$z$$ 加了 100，softmax 的结果仍然是 [0.6590, 0.2424, 0.0986]（数学结论）。3.3 节的数值稳定写法就建立在这条性质上。
 
 **性质二：概率之比等于 logits 之差的指数。**
 
-```
-p_i / p_j = e^{z_i} / e^{z_j} = e^{z_i − z_j}
-```
+$$
+\frac{p_i}{p_j} = \frac{e^{z_i}}{e^{z_j}} = e^{z_i - z_j}
+$$
 
-在天气例子里，z_0 − z_1 = 1.0，所以 p_0 / p_1 = e^1 = 2.7183（数学结论，第 1 部分）。这回答了 3.2.2 节的问题：logits 每差 1，概率就差 e ≈ 2.7 倍。logits 是概率的**对数尺度**。这也是 logit 这个名字的来历：在统计里，logit 指"对数几率"。
+在天气例子里，$$z_0 - z_1 = 1.0$$，所以 $$p_0 / p_1 = e^1 = 2.7183$$（数学结论，第 1 部分）。这回答了 3.2.2 节的问题：logits 每差 1，概率就差 $$e \approx 2.7$$ 倍。logits 是概率的**对数尺度**。这也是 logit 这个名字的来历：在统计里，logit 指"对数几率"。
 
-**性质三：整体缩放控制分布的尖锐程度。** 把所有 logits 乘以同一个数 s（实验脚本第 1 部分，数学结论）：
+**性质三：整体缩放控制分布的尖锐程度。** 把所有 logits 乘以同一个数 $$s$$（实验脚本第 1 部分，数学结论）：
 
-| s | softmax(s · z) |
+| $$s$$ | $$\operatorname{softmax}(s \cdot z)$$ |
 |---|---|
 | 0.5 | [0.5017, 0.3043, 0.1940] |
 | 1 | [0.6590, 0.2424, 0.0986] |
 | 2 | [0.8638, 0.1169, 0.0193] |
 | 10 | [1.0000, 0.0000, 0.0000]（四舍五入到 4 位） |
 
-s 越大，差距被放大，分布越尖，越接近 argmax；s 越小，分布越平，s → 0 时趋于均匀分布 [1/3, 1/3, 1/3]。第 8 章的"除以 √d"、第 14 章解码时的"温度"，都是在利用这条性质。
+$$s$$ 越大，差距被放大，分布越尖，越接近 argmax；$$s$$ 越小，分布越平，$$s \to 0$$ 时趋于均匀分布 [1/3, 1/3, 1/3]。第 8 章的"除以 $$\sqrt{d}$$"、第 14 章解码时的"温度"，都是在利用这条性质。
 
-**性质四：两类时就是 sigmoid。** 只有两类时，logits 是 [z, 0]（平移不变，总可以把第二个移成 0），
+**性质四：两类时就是 sigmoid。** 只有两类时，logits 是 $$[z, 0]$$（平移不变，总可以把第二个移成 0），
 
-```
-p_0 = e^z / (e^z + e^0) = 1 / (1 + e^{−z}) = sigmoid(z)
-```
+$$
+p_0 = \frac{e^z}{e^z + e^0} = \frac{1}{1 + e^{-z}} = \operatorname{sigmoid}(z)
+$$
 
-中间一步用了 e^0 = 1，再把分子分母同时除以 e^z。实验脚本第 1 部分算了 z = 1.5：softmax([1.5, 0]) = [0.8176, 0.1824]，sigmoid(1.5) = 0.8176（数学结论）。所以逻辑回归是 softmax 回归在 C = 2 时的特例。
+中间一步用了 $$e^0 = 1$$，再把分子分母同时除以 $$e^z$$。实验脚本第 1 部分算了 $$z = 1.5$$：$$\operatorname{softmax}([1.5, 0]) = [0.8176, 0.1824]$$，$$\operatorname{sigmoid}(1.5) = 0.8176$$（数学结论）。所以逻辑回归是 softmax 回归在 $$C = 2$$ 时的特例。
 
 ### 3.2.5 为什么偏偏用指数
 
@@ -585,9 +589,9 @@ e^12 ≈ 162755 超过了 65504，变成 inf；e^10 ≈ 22026 没有溢出，但
 
 还记得 3.2.4 节的性质一吗？给所有 logits 加同一个常数，结果不变。那就**减去最大值** m = max_j z_j：
 
-```
-softmax(z)_i = e^{z_i − m} / Σ_j e^{z_j − m}
-```
+$$
+\operatorname{softmax}(z)_i = \frac{e^{z_i-m}}{\sum_j e^{z_j-m}}
+$$
 
 这一步为什么能解决问题？看两件事：
 
@@ -602,10 +606,12 @@ softmax(z)_i = e^{z_i − m} / Σ_j e^{z_j − m}
 
 z = [1000, 999, 998] 减去最大值 1000 后变成 [0, −1, −2]，
 
-```
-e^{z − m} = [1.0000, 0.3679, 0.1353]，和 1.5032
-p = [0.6652, 0.2447, 0.0900]
-```
+$$
+\begin{aligned}
+e^{z-m} &= [1.0000,0.3679,0.1353],\qquad \text{和}=1.5032 \\
+p &= [0.6652,0.2447,0.0900]
+\end{aligned}
+$$
 
 （数学结论，第 2 部分。）注意这个结果和 softmax([2, 1, 0]) 完全一样，因为它们只差一个平移。
 
@@ -645,12 +651,14 @@ ln 0 = −inf（本项目观察，第 2 部分）。即使 softmax 本身用了�
 
 但 ln p_1 的精确值是一个完全正常的数，大约是 −200。问题不在数学，而在于我们先算了一个太小、存不下的中间量 p_1，再对它取对数。办法是**直接推出 ln p 的公式，不经过 p**：
 
-```
-ln p_i = ln( e^{z_i} / Σ_j e^{z_j} )
-       = z_i − ln Σ_j e^{z_j}                       （ln 把除法变成减法）
-       = z_i − ( m + ln Σ_j e^{z_j − m} )           （从和里提出 e^m）
-       = (z_i − m) − ln Σ_j e^{z_j − m}
-```
+$$
+\begin{aligned}
+\ln p_i &= \ln\frac{e^{z_i}}{\sum_j e^{z_j}} \\
+&= z_i-\ln\sum_j e^{z_j} && \text{（ln 把除法变成减法）} \\
+&= z_i-\left(m+\ln\sum_j e^{z_j-m}\right) && \text{（从和里提出 }e^m\text{）} \\
+&= (z_i-m)-\ln\sum_j e^{z_j-m}
+\end{aligned}
+$$
 
 第三行用到了 Σ_j e^{z_j} = e^m · Σ_j e^{z_j − m}，两边取 ln 得 m + ln Σ_j e^{z_j − m}。
 
@@ -658,9 +666,9 @@ ln p_i = ln( e^{z_i} / Σ_j e^{z_j} )
 
 `ln Σ_j e^{z_j}` 这个量很常用，有一个专门的名字：**log-sum-exp**，记作 LSE(z)。所以 log-softmax 可以简洁地写成：
 
-```
-log_softmax(z) = z − LSE(z)，  LSE(z) = m + ln Σ_j e^{z_j − m}
-```
+$$
+\operatorname{log\_softmax}(z)=z-\operatorname{LSE}(z),\qquad \operatorname{LSE}(z)=m+\ln\sum_j e^{z_j-m}
+$$
 
 这是数学上的写法。真正计算时要按上面最后一行的顺序，先算 z − m，再减 ln Σ_j e^{z_j − m}。如果先把 m 加回去算出 LSE(z)，再拿 z 去减，两个很大的数相减，在 fp32 下会丢精度（比如 z = [10⁸, 10⁸]）。下面的代码就是按这个顺序写的。
 
@@ -715,9 +723,9 @@ z = [0, −200] 时，log_softmax 得到 [0.0, −200.0]（本项目观察，第
 
 假设每次抛硬币互相独立。如果正面概率是 θ，那么恰好得到这一串结果的概率是：
 
-```
-P(数据 | θ) = θ · θ · … · θ （7 个）· (1 − θ) · … · (1 − θ) （3 个）= θ^7 (1 − θ)^3
-```
+$$
+P(\text{数据}\mid\theta) = \underbrace{\theta\cdot\theta\cdots\theta}_{7\text{ 个}}\cdot\underbrace{(1-\theta)\cdots(1-\theta)}_{3\text{ 个}} = \theta^7(1-\theta)^3
+$$
 
 这个量叫**似然**（likelihood），记作 L(θ)。它的含义是："假如真实参数是 θ，看到眼前这组数据的可能性有多大。"
 
@@ -738,27 +746,29 @@ P(数据 | θ) = θ · θ · … · θ （7 个）· (1 − θ) · … · (1 −
 
 **最大似然估计**（maximum likelihood estimation，MLE）就是：**选让似然最大的那个参数。**
 
-```
-θ* = argmax_θ L(θ)
-```
+$$
+\theta^* = \operatorname*{argmax}_{\theta} L(\theta)
+$$
 
 ### 3.4.2 取对数：把连乘变成相加
 
 直接对 θ^7 (1 − θ)^3 求最大值，要对一个乘积求导，有点麻烦。取对数以后就简单多了：
 
-```
-ln L(θ) = 7 ln θ + 3 ln(1 − θ)
-```
+$$
+\ln L(\theta) = 7\ln\theta+3\ln(1-\theta)
+$$
 
 这叫**对数似然**（log-likelihood）。因为 ln 是单调递增的，L 最大的地方 ln L 也最大，取对数不改变最优解。
 
 对 θ 求导，令导数为 0：
 
-```
-d/dθ ln L = 7/θ − 3/(1 − θ) = 0
-⟹ 7(1 − θ) = 3θ
-⟹ θ* = 7/10 = 0.7
-```
+$$
+\begin{aligned}
+\frac{d}{d\theta}\ln L &= \frac7\theta-\frac3{1-\theta} = 0 \\
+&\Longrightarrow 7(1-\theta)=3\theta \\
+&\Longrightarrow \theta^*=\frac7{10}=0.7
+\end{aligned}
+$$
 
 第一行里 ln(1 − θ) 的导数是 −1/(1 − θ)：外层 ln 给出 1/(1 − θ)，内层 1 − θ 对 θ 的导数是 −1（链式法则）。第二行是两边同乘 θ(1 − θ)，把分母去掉。
 
@@ -768,9 +778,9 @@ d/dθ ln L = 7/θ − 3/(1 − θ) = 0
 
 机器学习的习惯是最小化损失，而不是最大化某个东西。所以再加一个负号：
 
-```
-NLL(θ) = −ln L(θ) = −7 ln θ − 3 ln(1 − θ)
-```
+$$
+\operatorname{NLL}(\theta) = -\ln L(\theta) = -7\ln\theta-3\ln(1-\theta)
+$$
 
 这叫**负对数似然**（negative log-likelihood，NLL）。最大化似然 ⟺ 最小化 NLL。
 
@@ -778,12 +788,14 @@ NLL(θ) = −ln L(θ) = −7 ln θ − 3 ln(1 − θ)
 
 **把这四步串起来：**
 
-```
-似然        L(θ)   = Π_i P(x_i | θ)              连乘：所有样本同时出现的概率
-对数似然    ln L   = Σ_i ln P(x_i | θ)            取 ln：乘变加，最优解不变
-负对数似然  NLL    = −Σ_i ln P(x_i | θ)           取负：最大化变成最小化
-平均 NLL    loss   = −(1/N) Σ_i ln P(x_i | θ)     除以 N：不同数据集可以比较
-```
+$$
+\begin{aligned}
+\text{似然：}\quad L(\theta) &= \prod_i P(x_i\mid\theta) && \text{连乘：所有样本同时出现的概率} \\
+\text{对数似然：}\quad \ln L &= \sum_i\ln P(x_i\mid\theta) && \text{取 ln：乘变加，最优解不变} \\
+\text{负对数似然：}\quad \operatorname{NLL} &= -\sum_i\ln P(x_i\mid\theta) && \text{取负：最大化变成最小化} \\
+\text{平均 NLL：}\quad \mathrm{loss} &= -\frac1N\sum_i\ln P(x_i\mid\theta) && \text{除以 N：不同数据集可以比较}
+\end{aligned}
+$$
 
 每一步要么不改变最优解（取 ln、取负再换成最小化、除以常数 N），要么只是换一种写法，所以最小化平均 NLL 就是在做最大似然估计。
 
@@ -793,21 +805,21 @@ NLL(θ) = −ln L(θ) = −7 ln θ − 3 ln(1 − θ)
 
 训练集有 N 个样本 (x_1, y_1), …, (x_N, y_N)，y_i 是正确类别。假设样本之间互相独立，模型把每个样本都预测成它真实标签的概率是：
 
-```
-L(θ) = Π_{i=1}^{N} p_θ(y_i | x_i)
-```
+$$
+L(\theta) = \prod_{i=1}^N p_\theta(y_i\mid x_i)
+$$
 
 按上面四步，平均 NLL 是：
 
-```
-loss(θ) = −(1/N) Σ_{i=1}^{N} ln p_θ(y_i | x_i)
-```
+$$
+\mathrm{loss}(\theta) = -\frac1N\sum_{i=1}^N\ln p_\theta(y_i\mid x_i)
+$$
 
 而 p_θ(y_i | x_i) 就是 softmax 输出里**正确类别那一项**：
 
-```
-p_θ(y_i | x_i) = softmax(z_i)[y_i]，  z_i = 网络(x_i)
-```
+$$
+p_\theta(y_i\mid x_i) = \operatorname{softmax}(z_i)[y_i],\qquad z_i=\text{网络}(x_i)
+$$
 
 所以每个样本的罚分是 −ln softmax(z_i)[y_i] = −log_softmax(z_i)[y_i]。3.1.2 节凭直觉想要的 −ln p，就这样从最大似然原理推了出来。
 
@@ -897,9 +909,9 @@ fp32 撑不过 150 个样本，fp64 撑不过 1100 个。而一个小小的训�
 
 设有两个分布：q 是"真实"分布，p 是模型的分布，都是长度为 C 的概率向量。**交叉熵**定义为：
 
-```
-H(q, p) = −Σ_{k=1}^{C} q_k ln p_k
-```
+$$
+H(q,p) = -\sum_{k=1}^C q_k\ln p_k
+$$
 
 用本章开头回顾框里的期望来读："按真实分布 q 加权，对 −ln p_k 求平均。"也就是：**如果世界按 q 运转，而你按 p 来给罚分，平均每次挨罚多少。**
 
@@ -907,11 +919,13 @@ H(q, p) = −Σ_{k=1}^{C} q_k ln p_k
 
 分类问题里，每个样本的"真实分布"是 one-hot 向量 y：正确类别 c 那一位是 1，其他是 0。代进去：
 
-```
-H(y, p) = −Σ_k y_k ln p_k
-        = −(1 · ln p_c + 0 · ln p_其他 + …)
-        = −ln p_c
-```
+$$
+\begin{aligned}
+H(y,p) &= -\sum_k y_k\ln p_k \\
+&= -\left(1\cdot\ln p_c+\sum_{k\ne c}0\cdot\ln p_k\right) \\
+&= -\ln p_c
+\end{aligned}
+$$
 
 求和里只剩下正确类别那一项。这就是 3.4 节每个样本的 NLL。所以 one-hot 标签下，交叉熵 = 负对数似然，两个名字说的是同一个数。
 
@@ -923,9 +937,9 @@ H(y, p) = −Σ_k y_k ln p_k
 
 这份"不可避免的不确定性"有一个度量，叫**熵**（entropy）：
 
-```
-H(q) = −Σ_k q_k ln q_k = H(q, q)
-```
+$$
+H(q) = -\sum_k q_k\ln q_k = H(q,q)
+$$
 
 它就是用真实分布自己来打分时的交叉熵。q = [0.7, 0.2, 0.1] 时，H(q) = 0.8018（数学结论，第 4 部分）。
 
@@ -940,17 +954,17 @@ H(q) = −Σ_k q_k ln q_k = H(q, q)
 
 多出来的这部分叫 **KL 散度**（Kullback-Leibler divergence）：
 
-```
-KL(q ‖ p) = H(q, p) − H(q) = Σ_k q_k ln (q_k / p_k)
-```
+$$
+\operatorname{KL}(q\mathbin\Vert p) = H(q,p)-H(q) = \sum_k q_k\ln\frac{q_k}{p_k}
+$$
 
 第二个等号是把两个和并成一个：−Σ_k q_k ln p_k + Σ_k q_k ln q_k = Σ_k q_k (ln q_k − ln p_k)，ln 相减就是比值的 ln。
 
 有一个重要的定理（吉布斯不等式）：KL(q ‖ p) ≥ 0，当且仅当 p = q 时等于 0。本章不证明它。《Deep Learning》3.13 节介绍了这条性质（只陈述，没有证明）；证明可以看任何一本信息论教材，例如 Cover 与 Thomas 的《信息论基础》（Elements of Information Theory）第 2 章。它的含义是：
 
-```
-交叉熵 = 熵（不可避免的部分） + KL（模型和真实分布的差距）
-```
+$$
+\text{交叉熵} = \underbrace{\text{熵}}_{\text{不可避免的部分}}+\underbrace{\mathrm{KL}}_{\text{模型和真实分布的差距}}
+$$
 
 训练时 q 是数据给定的，H(q) 是常数，所以**最小化交叉熵 ⟺ 最小化 KL ⟺ 让模型分布 p 尽量接近真实分布 q**。这给了交叉熵损失第二个解释（第一个是最大似然）。
 
@@ -972,9 +986,9 @@ KL(q ‖ p) = H(q, p) − H(q) = Σ_k q_k ln (q_k / p_k)
 
 既然交叉熵可以对任意分布 q 计算，标签就不一定要是 one-hot。一个常见的做法叫**标签平滑**（label smoothing）：把 one-hot 标签抹平一点，
 
-```
-y' = (1 − ε) · y + ε / C
-```
+$$
+y' = (1-\varepsilon)\cdot y+\frac{\varepsilon}{C}
+$$
 
 ε = 0.1、C = 3 时，[1, 0, 0] 变成 [0.9333, 0.0333, 0.0333]。天气例子里 H(y', p) = 0.5137；`F.cross_entropy(..., label_smoothing=0.1)` 算出同样的 0.5137（数学结论，第 4 部分）。
 
@@ -1013,9 +1027,9 @@ z = [2.0, 1.0, 0.1]，正确答案是第 0 类（下雨），p = [0.6590, 0.2424
 
 设正确类别是 c，一个样本的 loss 是：
 
-```
-L = −ln p_c = −log_softmax(z)_c = −z_c + ln Σ_j e^{z_j}
-```
+$$
+L = -\ln p_c = -\operatorname{log\_softmax}(z)_c = -z_c+\ln\sum_j e^{z_j}
+$$
 
 最后一步用的是 3.3.5 节的 ln p_c = z_c − ln Σ_j e^{z_j}。
 
@@ -1023,31 +1037,31 @@ L = −ln p_c = −log_softmax(z)_c = −z_c + ln Σ_j e^{z_j}
 
 **第一项 −z_c。** 只有 k = c 时才和 z_k 有关：
 
-```
-∂(−z_c)/∂z_k = −1（k = c 时），0（k ≠ c 时）
-```
+$$
+\frac{\partial(-z_c)}{\partial z_k} = \begin{cases}-1,&k=c,\\0,&k\ne c.\end{cases}
+$$
 
 用 one-hot 向量 y 写起来更紧凑：这一项的导数就是 −y_k。
 
 **第二项 ln Σ_j e^{z_j}。** 用链式法则：外层是 ln(u)，导数 1/u；内层 u = Σ_j e^{z_j}，对 z_k 的导数只剩下 e^{z_k} 这一项：
 
-```
-∂/∂z_k ln Σ_j e^{z_j} = (1 / Σ_j e^{z_j}) · e^{z_k} = e^{z_k} / Σ_j e^{z_j} = p_k
-```
+$$
+\frac{\partial}{\partial z_k}\ln\sum_j e^{z_j} = \frac1{\sum_j e^{z_j}}\cdot e^{z_k} = \frac{e^{z_k}}{\sum_j e^{z_j}} = p_k
+$$
 
 最后一步正是 softmax 的定义。这一步有个副产品值得记住：**log-sum-exp 的梯度就是 softmax。**
 
 **两项相加：**
 
-```
-∂L/∂z_k = p_k − y_k
-```
+$$
+\frac{\partial L}{\partial z_k} = p_k-y_k
+$$
 
 写成向量：
 
-```
-∂L/∂z = p − y
-```
+$$
+\frac{\partial L}{\partial z} = p-y
+$$
 
 就这么简单。整个推导只用了两样东西：ln 的导数和 e^z 的导数。
 
@@ -1057,9 +1071,9 @@ L = −ln p_c = −log_softmax(z)_c = −z_c + ln Σ_j e^{z_j}
 
 **第一段：L 对 p 的导数。** L = −Σ_k y_k ln p_k，所以
 
-```
-∂L/∂p_k = −y_k / p_k
-```
+$$
+\frac{\partial L}{\partial p_k} = -\frac{y_k}{p_k}
+$$
 
 **第二段：p 对 z 的导数（雅可比矩阵）。** p_i = e^{z_i} / S，S = Σ_j e^{z_j}。用商的求导法则 (f/g)′ = (f′g − fg′) / g²，这里分子 f = e^{z_i}，分母 g = S，而 ∂S/∂z_j = e^{z_j}（和里只有第 j 项含 z_j）。分两种情况：
 
@@ -1070,13 +1084,15 @@ L = −ln p_c = −log_softmax(z)_c = −z_c + ln Σ_j e^{z_j}
 
 **第三段：相乘。** 按链式法则，
 
-```
-∂L/∂z_j = Σ_i (∂L/∂p_i) · (∂p_i/∂z_j)
-        = Σ_i (−y_i / p_i) · p_i (δ_ij − p_j)
-        = −Σ_i y_i (δ_ij − p_j)
-        = −y_j + p_j Σ_i y_i
-        = p_j − y_j
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial z_j} &= \sum_i\frac{\partial L}{\partial p_i}\cdot\frac{\partial p_i}{\partial z_j} \\
+&= \sum_i\left(-\frac{y_i}{p_i}\right)p_i(\delta_{ij}-p_j) \\
+&= -\sum_i y_i(\delta_{ij}-p_j) \\
+&= -y_j+p_j\sum_i y_i \\
+&= p_j-y_j
+\end{aligned}
+$$
 
 第二行到第三行，1/p_i 和 p_i 恰好约掉了。第三行到第四行把括号拆开：Σ_i y_i δ_ij 里只有 i = j 那一项不是 0，所以等于 y_j；另一部分里 p_j 和 i 无关，可以提到求和外面。最后一步用了 Σ_i y_i = 1（y 是一个概率分布）。结果和 3.6.2 节一样。
 
@@ -1088,50 +1104,51 @@ L = −ln p_c = −log_softmax(z)_c = −z_c + ln Σ_j e^{z_j}
 
 **前向。**
 
-```
-z = [2.0, 1.0, 0.1]                       形状 (3,)
-p = softmax(z) = [0.6590, 0.2424, 0.0986]  形状 (3,)
-y = onehot(0) = [1, 0, 0]                  形状 (3,)
-L = −ln p_0 = −ln 0.6590 = 0.4170          标量
-```
+$$
+\begin{aligned}
+z &= [2.0,1.0,0.1] && \text{形状 }(3,) \\
+p &= \operatorname{softmax}(z) = [0.6590,0.2424,0.0986] && \text{形状 }(3,) \\
+y &= \operatorname{onehot}(0) = [1,0,0] && \text{形状 }(3,) \\
+L &= -\ln p_0 = -\ln0.6590 = 0.4170 && \text{标量}
+\end{aligned}
+$$
 
 **路线一：链式法则。**
 
 L 对 p 的导数，形状 (3,)：
 
-```
-∂L/∂p = −y / p = [−1/0.6590, 0, 0] = [−1.5174, 0, 0]
-```
+$$
+\frac{\partial L}{\partial p} = -\frac yp = [-1/0.6590,0,0] = [-1.5174,0,0]
+$$
 
 softmax 的雅可比 J[i][j] = p_i (δ_ij − p_j)，形状 (3, 3)。先手算两项：
 
-```
-J[0][0] = p_0 (1 − p_0) = 0.6590 × 0.3410 = 0.2247
-J[0][1] = −p_0 p_1     = −0.6590 × 0.2424 = −0.1598
-```
+$$
+\begin{aligned}
+J[0][0] &= p_0(1-p_0) = 0.6590\times0.3410 = 0.2247 \\
+J[0][1] &= -p_0p_1 = -0.6590\times0.2424 = -0.1598
+\end{aligned}
+$$
 
 全部结果（数学结论，第 5 部分）：
 
-```
-          z_0       z_1       z_2
-p_0 [  0.2247,  -0.1598,  -0.0650 ]
-p_1 [ -0.1598,   0.1837,  -0.0239 ]
-p_2 [ -0.0650,  -0.0239,   0.0889 ]
-```
+$$
+J=\begin{array}{c|rrr}&z_0&z_1&z_2\\\hline p_0&0.2247&-0.1598&-0.0650\\p_1&-0.1598&0.1837&-0.0239\\p_2&-0.0650&-0.0239&0.0889\end{array}
+$$
 
 每一行加起来是 0。这不是巧合：p 的各分量之和恒为 1，不管 z 怎样变，Σ_i p_i 都不变，所以 Σ_i ∂p_i/∂z_j = 0；J 是对称的，所以每一行的和也是 0。
 
 相乘：∂L/∂z_j = Σ_i (∂L/∂p_i) J[i][j]。∂L/∂p 只有第 0 项不是 0，所以只需要用 J 的第 0 行：
 
-```
-∂L/∂z = −1.5174 × [0.2247, −0.1598, −0.0650] = [−0.3410, 0.2424, 0.0986]
-```
+$$
+\frac{\partial L}{\partial z} = -1.5174\times[0.2247,-0.1598,-0.0650] = [-0.3410,0.2424,0.0986]
+$$
 
 **路线二：公式 p − y。**
 
-```
-p − y = [0.6590 − 1, 0.2424 − 0, 0.0986 − 0] = [−0.3410, 0.2424, 0.0986]
-```
+$$
+p-y = [0.6590-1,0.2424-0,0.0986-0] = [-0.3410,0.2424,0.0986]
+$$
 
 两条路结果一致（数学结论，第 5 部分），但第二条路几乎不用算。
 
@@ -1156,11 +1173,13 @@ z.grad      # tensor([-0.3410,  0.2424,  0.0986])
 
 **走一小步试试。** 取 η = 0.5（实验脚本第 5 部分，数学结论）：
 
-```
-z' = z − 0.5 × [−0.3410, 0.2424, 0.0986] = [2.1705, 0.8788, 0.0507]
-p'_0 = 0.7169（原来 0.6590）
-L'  = 0.3328（原来 0.4170）
-```
+$$
+\begin{aligned}
+z' &= z-0.5\times[-0.3410,0.2424,0.0986] = [2.1705,0.8788,0.0507] \\
+p'_0 &= 0.7169 \qquad \text{（原来 }0.6590\text{）} \\
+L' &= 0.3328 \qquad \text{（原来 }0.4170\text{）}
+\end{aligned}
+$$
 
 下雨的概率升高了，loss 降低了。
 
@@ -1190,15 +1209,15 @@ L'  = 0.3328（原来 0.4170）
 
 一个 batch 有 N 个样本，loss 是平均值：L = (1/N) Σ_i L_i。每个样本的 logits z_i 只出现在 L_i 里，所以：
 
-```
-∂L/∂z_i = (1/N) (p_i − y_i)
-```
+$$
+\frac{\partial L}{\partial z_i} = \frac1N(p_i-y_i)
+$$
 
 写成矩阵，logits Z 形状 (N, C)，P = softmax(Z)，Y 是 one-hot 矩阵：
 
-```
-∂L/∂Z = (P − Y) / N        形状 (N, C)
-```
+$$
+\frac{\partial L}{\partial Z} = \frac{P-Y}{N}\qquad\text{形状 }(N,C)
+$$
 
 代码（`miniocr/nn/losses.py` 的 `softmax_ce_grad`）：
 
@@ -1316,9 +1335,9 @@ def cross_entropy(logits, targets, ignore_index=-100, reduction="mean"):
 
 补齐位置是 0。有效 token 一共 6 个，
 
-```
-按 token 平均 = (2.6347 + 2.7697 + 2.2229 + 1.8952 + 0.4422 + 1.7582) / 6 = 11.7229 / 6 = 1.9538
-```
+$$
+\text{按 token 平均} = \frac{2.6347+2.7697+2.2229+1.8952+0.4422+1.7582}{6} = \frac{11.7229}{6} = 1.9538
+$$
 
 `F.cross_entropy(logits.reshape(-1, V), targets.reshape(-1))` 也给出 1.9538（本项目观察，第 6 部分）。
 
@@ -1335,20 +1354,24 @@ def cross_entropy(logits, targets, ignore_index=-100, reduction="mean"):
 
 上面的"按 token 平均"是把所有有效 token 放在一起平均。还有另一种做法：**先在每个序列内部平均，再对序列平均。**
 
-```
-按 token 平均：  L_tok = Σ_b Σ_t ℓ_{b,t} / Σ_b n_b
-按序列平均：    L_seq = (1/B) Σ_b ( Σ_t ℓ_{b,t} / n_b )
-```
+$$
+\begin{aligned}
+\text{按 token 平均：}\quad L_{\mathrm{tok}} &= \frac{\sum_b\sum_t\ell_{b,t}}{\sum_b n_b} \\
+\text{按序列平均：}\quad L_{\mathrm{seq}} &= \frac1B\sum_b\frac{\sum_t\ell_{b,t}}{n_b}
+\end{aligned}
+$$
 
 ℓ_{b,t} 是第 b 个序列第 t 个有效位置的 nll，n_b 是第 b 个序列的有效 token 数。
 
 上面的例子按序列平均（本项目观察，第 6 部分）：
 
-```
-序列 0 的平均 = (2.6347 + 2.7697 + 2.2229 + 1.8952) / 4 = 9.5226 / 4
-序列 1 的平均 = (0.4422 + 1.7582) / 2 = 2.2004 / 2
-按序列平均 = (9.5226/4 + 2.2004/2) / 2 = 1.7404
-```
+$$
+\begin{aligned}
+\text{序列 0 的平均} &= \frac{2.6347+2.7697+2.2229+1.8952}{4} = \frac{9.5226}{4} \\
+\text{序列 1 的平均} &= \frac{0.4422+1.7582}{2} = \frac{2.2004}{2} \\
+\text{按序列平均} &= \frac{9.5226/4+2.2004/2}{2} = 1.7404
+\end{aligned}
+$$
 
 和按 token 平均的 1.9538 不一样。差别在哪里？看一个对比更鲜明的例子（数学结论，第 6 部分）：
 
@@ -1404,15 +1427,15 @@ F.cross_entropy(logits.transpose(1, 2), targets)                  # 变成 (B, V
 
 **推导。** 一个好的初始化会让网络最后一层的输出很小（第 4 章讲为什么），logits 都接近 0。logits 全为 0 时，softmax 是均匀分布：
 
-```
-p_k = e^0 / Σ_j e^0 = 1 / C
-```
+$$
+p_k = \frac{e^0}{\sum_j e^0} = \frac1C
+$$
 
 每个样本的 loss 都是：
 
-```
-L = −ln(1/C) = ln C
-```
+$$
+L = -\ln\frac1C = \ln C
+$$
 
 所以：**初始 loss 应该约等于 ln C。**（数学结论。）
 
@@ -1456,9 +1479,9 @@ L = −ln(1/C) = ln C
 
 **类别不均衡。** 如果类别 0 占 50%，其余 9 类平分剩下的 50%，那么一个只学会了类别频率的模型的 loss 是这个频率分布的熵：
 
-```
-H = −0.5 ln 0.5 − 9 × (0.5/9) ln(0.5/9) = 1.7918
-```
+$$
+H = -0.5\ln0.5-9\times\frac{0.5}{9}\ln\frac{0.5}{9} = 1.7918
+$$
 
 （数学结论；在 200000 个样本上实测 1.7868，本项目观察，第 7 部分。）这个值比 ln 10 小。所以在类别不均衡的数据上，一个不看输入、始终输出（这批数据的）类别频率的模型，loss 恰好是 H(频率)。这是比 ln C 更合适的及格线：loss 长期停在它附近，值得怀疑模型还没用上输入。但这只是排查信号，不是证明。平均 loss 是许多样本的平均，有的样本概率升高、有的降低，可能正好抵消。例如两个样本标签为 0 和 1，模型分别输出 [0.8, 0.2] 和 [0.6875, 0.3125]，平均 loss 也是 ln 2 = H(频率)，可它明显随输入改变了预测。要确认，还得逐样本看预测、和只预测频率的基线模型比较，或者把输入打乱再训练做对照。有些实现会把最后一层的偏置初始化成 ln(类别频率)，让初始 loss 直接从这里开始，省掉前面学习频率的那几步。
 
@@ -1504,9 +1527,9 @@ loss
 
 最简单的分类器是一个线性函数：
 
-```
-scores = X W                 X 形状 (N, D)，W 形状 (D, C)，scores 形状 (N, C)
-```
+$$
+\mathrm{scores}=XW,\qquad X:(N,D),\quad W:(D,C),\quad\mathrm{scores}:(N,C)
+$$
 
 N 是样本数，D 是每个样本的特征数，C 是类别数。scores 就是 logits，后面接 softmax 和交叉熵。
 
@@ -1514,9 +1537,9 @@ N 是样本数，D 是每个样本的特征数，C 是类别数。scores 就是 
 
 **损失**是平均交叉熵加上 L2 正则：
 
-```
-loss = (1/N) Σ_i −ln softmax(scores_i)[y_i]  +  reg · Σ_{d,c} W_{dc}²
-```
+$$
+\mathrm{loss} = -\frac1N\sum_i\ln\operatorname{softmax}(\mathrm{scores}_i)[y_i]+\mathrm{reg}\cdot\sum_{d,c}W_{dc}^2
+$$
 
 正则项惩罚太大的权重。3.4.8 节说过，即使所有样本都分对了，交叉熵还会继续把 logits 往大推；正则项给这种增长加了一个刹车。它的作用第 4、5 章再细讲，这里只需要算出它的梯度。
 
@@ -1526,27 +1549,27 @@ loss = (1/N) Σ_i −ln softmax(scores_i)[y_i]  +  reg · Σ_{d,c} W_{dc}²
 
 **第一步：对 scores。** 这就是 3.6.7 节的结果：
 
-```
-dS = ∂loss/∂scores = (P − Y) / N        形状 (N, C)
-```
+$$
+dS = \frac{\partial\mathrm{loss}}{\partial\mathrm{scores}} = \frac{P-Y}{N}\qquad\text{形状 }(N,C)
+$$
 
 **第二步：从 scores 到 W。** 写出 scores 的一个元素：
 
-```
-S_{ic} = Σ_d X_{id} W_{dc}
-```
+$$
+S_{ic} = \sum_d X_{id}W_{dc}
+$$
 
 W_{dc} 出现在第 c 列的每一个 S_{ic}（i = 1, …, N）里，系数是 X_{id}。按链式法则把所有路径加起来（第 2 章："一个变量被用了多次，梯度相加"）：
 
-```
-∂loss/∂W_{dc} = Σ_i (∂loss/∂S_{ic}) · X_{id} = Σ_i X_{id} · dS_{ic} = (Xᵀ dS)_{dc}
-```
+$$
+\frac{\partial\mathrm{loss}}{\partial W_{dc}} = \sum_i\frac{\partial\mathrm{loss}}{\partial S_{ic}}X_{id} = \sum_i X_{id}\,dS_{ic} = (X^\top dS)_{dc}
+$$
 
 写成矩阵：
 
-```
-dW = Xᵀ dS           (D, N) @ (N, C) = (D, C)
-```
+$$
+dW = X^\top dS,\qquad \underbrace{(D,N)}_{X^\top}\mathbin{@}\underbrace{(N,C)}_{dS}\longrightarrow(D,C)
+$$
 
 **检查形状**是一个很好的习惯：dW 必须和 W 同形状 (D, C)。X 是 (N, D)，dS 是 (N, C)，要得到 (D, C)，只有 Xᵀ @ dS 这一种乘法。以后忘了公式，靠形状就能把它拼回来。
 
@@ -1554,9 +1577,9 @@ dW = Xᵀ dS           (D, N) @ (N, C) = (D, C)
 
 **合起来：**
 
-```
-dW = Xᵀ (P − Y) / N + 2 · reg · W
-```
+$$
+dW = \frac{X^\top(P-Y)}{N}+2\cdot\mathrm{reg}\cdot W
+$$
 
 ### 3.9.3 代码
 
@@ -1607,17 +1630,17 @@ def numerical_gradient(f, x, h=1e-5):
 
 它用的是**中心差分**：
 
-```
-∂f/∂x_i ≈ ( f(x + h e_i) − f(x − h e_i) ) / (2h)
-```
+$$
+\frac{\partial f}{\partial x_i} \approx \frac{f(x+he_i)-f(x-he_i)}{2h}
+$$
 
 e_i 是第 i 个分量为 1、其余为 0 的向量。对每个参数都要算两次 f，所以它很慢（参数有 P 个，就要做 2P 次前向），只能用来**检查**，不能用来训练。
 
 **比较的标准：相对误差。**
 
-```
-rel_error = max_i |a_i − b_i| / (|a_i| + |b_i|)
-```
+$$
+\mathrm{rel\_error} = \max_i\frac{|a_i-b_i|}{|a_i|+|b_i|}
+$$
 
 本章的分母是 |a| + |b|（`rel_error` 就这样实现）。2.8.6 节的分母是 max(|a|, |b|)，两种写法最多差 2 倍（数学结论）。阈值只看量级，所以 2.8.6 节引用的 CS231n 经验标准两种写法都能用：大于 1e-2 多半写错了，1e-2 到 1e-4 之间可疑，1e-4 到 1e-7 之间对有不可导点（比如 ReLU）的函数可以接受、对处处光滑的函数仍然偏高，小于 1e-7 基本可以放心（待验证：这是经验值，不是定理，和问题的规模、精度有关）。
 

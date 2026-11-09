@@ -20,8 +20,10 @@
 
 **18-7** 【18.4.6、18.5.4】在 val 前 500 条上（GPU 运行），直接续写格式的 EM_norm 是 123/500，照抄是 191/500（原始输出口径）。用 Wilson 公式
 
-$$\tilde p = \frac{\hat p + \frac{z^2}{2n}}{1+\frac{z^2}{n}},\qquad
-w = \frac{z\sqrt{\frac{\hat p(1-\hat p)}{n}+\frac{z^2}{4n^2}}}{1+\frac{z^2}{n}},\qquad z=1.96$$
+$$
+\tilde p = \frac{\hat p + \frac{z^2}{2n}}{1+\frac{z^2}{n}},\qquad
+w = \frac{z\sqrt{\frac{\hat p(1-\hat p)}{n}+\frac{z^2}{4n^2}}}{1+\frac{z^2}{n}},\qquad z=1.96
+$$
 
 分别算出两个 95% 区间 $[\tilde p - w,\ \tilde p + w]$（保留三位小数），判断它们是否重叠。能不能据此说"在这 500 条上直接续写不如照抄"？如果同样的比例只有 20 条（默认 CPU tour 里是 4/20 对 7/20），结论会怎样变？
 

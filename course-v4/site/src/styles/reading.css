@@ -59,6 +59,17 @@ body {
 .sl-markdown-content :is(p, li) { line-height: 1.9; }
 .sl-markdown-content > * + * { margin-top: 1.15em; }
 
+/* 长公式在自己的区域内滚动，避免撑宽窄屏页面。 */
+.sl-markdown-content .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: .2em;
+}
+.sl-markdown-content .katex-display > .katex {
+  width: max-content;
+  min-width: 100%;
+}
+
 /* 标题:克制,靠间距而不是线条分层 */
 .sl-markdown-content :is(h2, h3, h4) { font-weight: 650; color: var(--sl-color-white); text-wrap: balance; letter-spacing: .01em; }
 .sl-markdown-content h2 { margin-top: 3.2rem; padding: 0; border: 0; }

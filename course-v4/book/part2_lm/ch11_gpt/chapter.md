@@ -115,10 +115,12 @@ V = 2258 是本次训练出的 BPE 词表大小（本项目观察，CPU，第 1 
 
 **第 3 步：过 L 个块。** 对 l = 1…L：
 
-```text
-x ← x + Attn_l(RMSNorm(x))      ← 位置在这里注入
-x ← x + MLP_l(RMSNorm(x))
-```
+$$
+\begin{aligned}
+x &\leftarrow x+\operatorname{Attn}_l(\operatorname{RMSNorm}(x))\qquad\text{位置在这里注入} \\
+x &\leftarrow x+\operatorname{MLP}_l(\operatorname{RMSNorm}(x))
+\end{aligned}
+$$
 
 **第 4 步：最后归一化。** h = RMSNorm(x⁽ᴸ⁾)。
 
@@ -126,9 +128,9 @@ x ← x + MLP_l(RMSNorm(x))
 
 **第 6 步：交叉熵。** 把 logits 摊平成 (B·T, V)，目标摊平成 (B·T,)，对每一行算 −log softmax(logits)[y]，再对**计入的位置**取平均。把 softmax 展开，−log(exp(z_y) / Σ_j exp(z_j)) = log Σ_j exp(z_j) − z_y，所以：
 
-```text
-loss = (1 / |S|) · Σ_{(b,t)∈S} [ log Σ_j exp(z_{b,t,j}) − z_{b,t,y_{b,t}} ]
-```
+$$
+\mathrm{loss}=\frac1{|S|}\sum_{(b,t)\in S}\left[\log\sum_j\exp(z_{b,t,j})-z_{b,t,y_{b,t}}\right]
+$$
 
 S 是计入 loss 的位置集合：目标不等于 −100，并且 loss_mask 为 True。
 
@@ -149,12 +151,14 @@ y       = [[3, 4, 2]]            (1, 3)     ← 已经错开一位：位置 0 �
 
 假设位置 0 的 logits 是 z = [0, 1, 0, 2, 0]，目标是 3。这一行的 loss：
 
-```text
-log Σ exp(z) = log(e⁰ + e¹ + e⁰ + e² + e⁰)
-             = log(1 + 2.7183 + 1 + 7.3891 + 1)
-             = log(13.1074) = 2.5732
-loss₀ = 2.5732 − z₃ = 2.5732 − 2 = 0.5732
-```
+$$
+\begin{aligned}
+\log\sum\exp(z) &= \log(e^0+e^1+e^0+e^2+e^0) \\
+&= \log(1+2.7183+1+7.3891+1) \\
+&= \log(13.1074)=2.5732 \\
+\mathrm{loss}_0 &= 2.5732-z_3=2.5732-2=0.5732
+\end{aligned}
+$$
 
 （数学结论。）
 
@@ -254,10 +258,12 @@ def forward(self, idx=None, targets=None, inputs_embeds=None, caches=None, pos0=
 
 加起来（数学结论）：
 
-```text
-N = V·d + L·(4d² + 3df + 2d) + d          （共享权重）
-N = 2·V·d + L·(4d² + 3df + 2d) + d        （不共享）
-```
+$$
+\begin{aligned}
+N &= Vd+L(4d^2+3df+2d)+d && \text{（共享权重）} \\
+N &= 2Vd+L(4d^2+3df+2d)+d && \text{（不共享）}
+\end{aligned}
+$$
 
 **中间维 f 从哪里来。** `ff_dim()` 的规则是：f ≈ 8d/3，再向上取整到 64 的倍数。为什么是 8/3？SwiGLU 有三个矩阵，经典 GELU MLP 只有两个（d → 4d → d，共 8d²）。让 3df = 8d²，就得 f = 8d/3，两种前馈的参数量相同（第 9 章 9.5 节）。取整到 64 的倍数是为了让矩阵乘法在硬件上更整齐。
 
@@ -269,11 +275,13 @@ V = 2258，d = 256，L = 4。
 
 先算 f：
 
-```text
-8 × 256 / 3 = 682.67
-682.67 / 64 = 10.67  →  向上取整 11
-f = 11 × 64 = 704
-```
+$$
+\begin{aligned}
+\frac{8\times256}{3} &= 682.67 \\
+\frac{682.67}{64} &= 10.67\quad\longrightarrow\quad\text{向上取整 }11 \\
+f &= 11\times64=704
+\end{aligned}
+$$
 
 再逐项算：
 
@@ -370,9 +378,9 @@ def n_params(self, non_embedding=False):
 
 多元微积分的链式法则说：一个变量通过几条路影响结果，总导数就是各条路的导数之和。所以（数学结论）：
 
-```text
-∂loss/∂E = ∂loss/∂E |路径A + ∂loss/∂E |路径B
-```
+$$
+\frac{\partial\mathrm{loss}}{\partial E}=\left.\frac{\partial\mathrm{loss}}{\partial E}\right|_{\text{路径 A}}+\left.\frac{\partial\mathrm{loss}}{\partial E}\right|_{\text{路径 B}}
+$$
 
 两条路各自是什么样子？
 
@@ -395,20 +403,24 @@ E = [[1, 0],     ← token 0
 
 **路径 B。** logits z = E h = [2·1 + (−1)·0, 0·2 + 1·(−1), 2 + (−1)] = [2, −1, 1]。
 
-```text
-softmax 的分母 = e² + e⁻¹ + e¹ = e² · (1 + e⁻³ + e⁻¹) = e² · 1.4177
-p = [1/1.4177, 0.0498/1.4177, 0.3679/1.4177] = [0.7054, 0.0351, 0.2595]
-loss = −ln 0.7054 = ln 1.4177 = 0.3490
-g = p − onehot(0) = [−0.2946, 0.0351, 0.2595]
-```
+$$
+\begin{aligned}
+\text{softmax 的分母} &= e^2+e^{-1}+e^1=e^2(1+e^{-3}+e^{-1})=e^2\times1.4177 \\
+p &= [1/1.4177,0.0498/1.4177,0.3679/1.4177]=[0.7054,0.0351,0.2595] \\
+\mathrm{loss} &= -\ln0.7054=\ln1.4177=0.3490 \\
+g &= p-\operatorname{onehot}(0)=[-0.2946,0.0351,0.2595]
+\end{aligned}
+$$
 
 输出路径对 E 的梯度是 g 的每个分量乘 h：
 
-```text
-第 0 行：−0.2946 × [2, −1] = [−0.5892,  0.2946]
-第 1 行： 0.0351 × [2, −1] = [ 0.0702, −0.0351]
-第 2 行： 0.2595 × [2, −1] = [ 0.5190, −0.2595]
-```
+$$
+\begin{aligned}
+\text{第 0 行：}\quad &-0.2946\times[2,-1]=[-0.5892,0.2946] \\
+\text{第 1 行：}\quad &0.0351\times[2,-1]=[0.0702,-0.0351] \\
+\text{第 2 行：}\quad &0.2595\times[2,-1]=[0.5190,-0.2595]
+\end{aligned}
+$$
 
 三行都有梯度，包括输入里根本没出现的 token 0 和 token 1。
 
@@ -416,11 +428,13 @@ g = p − onehot(0) = [−0.2946, 0.0351, 0.2595]
 
 **相加。** 共享矩阵的梯度：
 
-```text
-第 0 行：[−0.5892,  0.2946]
-第 1 行：[ 0.0702, −0.0351]
-第 2 行：[ 0.5190 + 0.1, −0.2595 − 0.2] = [0.6190, −0.4595]
-```
+$$
+\begin{aligned}
+\text{第 0 行：}\quad &[-0.5892,0.2946] \\
+\text{第 1 行：}\quad &[0.0702,-0.0351] \\
+\text{第 2 行：}\quad &[0.5190+0.1,-0.2595-0.2]=[0.6190,-0.4595]
+\end{aligned}
+$$
 
 （数学结论；路径 A 的数值是假设的。）
 
@@ -474,9 +488,9 @@ head.weight is tok.weight=True；data_ptr相同=True；节省参数=72256
 
 刚初始化的模型什么都没学到。对它来说，下一个 token 是 2258 个里的哪一个，都一样可能。最诚实的回答是均匀分布：每个 token 概率 1/V。这时交叉熵是
 
-```text
-loss = −ln(1/V) = ln V
-```
+$$
+\mathrm{loss}=-\ln(1/V)=\ln V
+$$
 
 V = 2258 时，ln V = 7.7222（数学结论）。
 
@@ -488,17 +502,17 @@ V = 2258 时，ln V = 7.7222（数学结论）。
 
 **第 1 步：期望 loss。** 一个位置的 loss 是 11.2.2 节的 log Σ_j exp(z_j) − z_y。期望对减法可以拆开：
 
-```text
-E[loss] = E[ log Σ_j exp(z_j) ] − E[z_y]
-```
+$$
+\mathbb E[\mathrm{loss}]=\mathbb E\left[\log\sum_j\exp(z_j)\right]-\mathbb E[z_y]
+$$
 
 z_y 和其他 logits 同分布，均值 0，第二项为 0。
 
 **第 2 步：近似第一项。** 把和写成 V 乘以平均值：Σ_j exp(z_j) = V · (1/V) Σ_j exp(z_j)。V 很大时，这个平均值接近 E[exp(z)]（大数定律）。和集中在它的均值附近，所以先取对数再求期望，约等于先求期望再取对数：E[log Σ] ≈ log E[Σ] = log(V · E[exp(z)])。剩下的 E[exp(z)] 用正态分布的矩母函数：z ~ N(0, σ²) 时 E[exp(tz)] = exp(σ²t²/2)，取 t = 1 得到 E[exp(z)] = exp(σ²/2)。最后用对数把乘积拆成和：
 
-```text
-E[loss] ≈ ln(V · e^{σ²/2}) = ln V + σ²/2
-```
+$$
+\mathbb E[\mathrm{loss}]\approx\ln(Ve^{\sigma^2/2})=\ln V+\sigma^2/2
+$$
 
 这个近似在 σ 比较小时成立（数学结论，近似）。σ 越大，exp(z_j) 里越容易出现个别特别大的值，平均值就不再贴近 E[exp(z)]。
 
@@ -506,20 +520,24 @@ E[loss] ≈ ln(V · e^{σ²/2}) = ln V + σ²/2
 
 **第 3 步：σ 由谁决定。** 最后的 RMSNorm 把每个位置的向量拉到 RMS ≈ 1（γ 初始为 1），记作 h，每个分量的平方平均约为 1。输出层每个元素独立地按 std = s 初始化，均值为 0。再假设 W 和 h 无关（和上面一样，忽略共享权重带来的相关），把 h 看成固定的数，z_i 就是 d 个独立项 W_{ik} h_k 之和，每项方差 h_k² s²，独立项之和的方差等于方差之和。于是
 
-```text
-z_i = Σ_{k=1}^{d} W_{ik} h_k
-Var(z_i) = Σ_k h_k² · s² = d · 1 · s²
-σ = s · √d
-```
+$$
+\begin{aligned}
+z_i &= \sum_{k=1}^d W_{ik}h_k \\
+\operatorname{Var}(z_i) &= \sum_k h_k^2s^2=d\times1\times s^2 \\
+\sigma &= s\sqrt d
+\end{aligned}
+$$
 
 （数学结论，在上述近似下。）中间那个等号用了 RMS ≈ 1：d 个 h_k² 的平均约为 1，加起来约为 d。
 
 **第 4 步：代入本书配置。** s = 0.02，d = 256：
 
-```text
-σ = 0.02 × √256 = 0.02 × 16 = 0.32
-E[loss] ≈ 7.7222 + 0.32² / 2 = 7.7222 + 0.0512 = 7.7734
-```
+$$
+\begin{aligned}
+\sigma &= 0.02\times\sqrt{256}=0.02\times16=0.32 \\
+\mathbb E[\mathrm{loss}] &\approx7.7222+\frac{0.32^2}{2}=7.7222+0.0512=7.7734
+\end{aligned}
+$$
 
 这就是略大于 ln V 的来源，大约多 0.05。
 
@@ -595,17 +613,17 @@ print(... math.log(exp.vocab) ..., math.log(exp.vocab-1) ...)
 
 **第 1 步：写出残差流。** 把 L 个块的 2L 个支路依次编号 1…2L：
 
-```text
-x_{2L} = x_0 + b_1 + b_2 + … + b_{2L}
-```
+$$
+x_{2L}=x_0+b_1+b_2+\cdots+b_{2L}
+$$
 
 b_i 是第 i 个支路的输出。
 
 **第 2 步：做一个简化假设。** 假设各个 b_i 互相独立、均值为 0、方差都是 v，并且和 x_0 独立。独立随机变量之和的方差等于各自方差之和，所以（数学结论）：
 
-```text
-Var(x_{2L}) = Var(x_0) + 2L · v
-```
+$$
+\operatorname{Var}(x_{2L})=\operatorname{Var}(x_0)+2Lv
+$$
 
 方差随深度**线性**增长，标准差随 √(2L) 增长。
 
@@ -613,9 +631,9 @@ Var(x_{2L}) = Var(x_0) + 2L · v
 
 **第 4 步：缩放。** 把这两个矩阵的 std 从 s 改成 s / √(2L)，每个支路的方差从 v 变成 v / (2L)：
 
-```text
-Var(x_{2L}) = Var(x_0) + 2L · v / (2L) = Var(x_0) + v
-```
+$$
+\operatorname{Var}(x_{2L})=\operatorname{Var}(x_0)+\frac{2Lv}{2L}=\operatorname{Var}(x_0)+v
+$$
 
 总增量和层数无关了（数学结论，在独立假设下）。
 

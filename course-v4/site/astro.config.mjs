@@ -12,7 +12,7 @@ export default defineConfig({
   base: process.env.SITE_BASE ?? '/mini-ocr',
   markdown: {
     smartypants: false,
-    remarkPlugins: [[remarkMath, { singleDollarTextMath: false }]],
+    remarkPlugins: [remarkMath],
     rehypePlugins: [rehypeKatex, rehypeCallouts],
   },
   integrations: [

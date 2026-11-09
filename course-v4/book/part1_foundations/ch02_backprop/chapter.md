@@ -44,9 +44,9 @@ python -m book.part1_foundations.ch02_backprop.tour 4        # 只运行第 4 �
 
 先看一个最小的模型。它只有一个参数 w，预测值是 ŷ = w·x。手上只有一个样本：x = 2，正确答案 y = 3。用平方误差衡量预测得好不好：
 
-```
-L(w) = (w·x − y)² = (2w − 3)²
-```
+$$
+L(w) = (w\cdot x-y)^2 = (2w-3)^2
+$$
 
 L 叫**损失**（loss），越小越好。现在 w = 0.5，预测 ŷ = 1，损失 L = (1 − 3)² = 4。
 
@@ -114,9 +114,9 @@ L 叫**损失**（loss），越小越好。现在 w = 0.5，预测 ŷ = 1，损�
 
 这句话里最容易被忽略的是"**在 x 附近**"和"**大约**"。导数只描述一个很小的邻域。w 加 0.1 时，L 实际变化 −0.76，而按 −8 倍估算是 −0.8，已经差了 5%。差的那部分来自曲线的弯曲。把 w = 0.5 + Δw 代进 L = (2w − 3)²，括号里是 2Δw − 2，平方后是 4Δw² − 8Δw + 4，再减去原来的 L = 4：
 
-```
-L(w + Δw) − L(w) = −8Δw + 4Δw²
-```
+$$
+L(w+\Delta w)-L(w) = -8\Delta w+4(\Delta w)^2
+$$
 
 Δw 很小时，Δw² 小得可以忽略，变化几乎就是 −8Δw；Δw 大了，Δw² 那一项就不能忽略了（数学结论）。所以导数只是一个局部的结论，2.6.5 节会看到，步子迈得太大，按导数预测的"损失会下降"可能完全落空。
 
@@ -126,9 +126,9 @@ L(w + Δw) − L(w) = −8Δw + 4Δw²
 
 把所有偏导数排成一个向量，就是**梯度**：
 
-```
-∇f = [∂f/∂a, ∂f/∂b, …]
-```
+$$
+\nabla f = \left[\frac{\partial f}{\partial a},\frac{\partial f}{\partial b},\ldots\right]
+$$
 
 对神经网络来说，"输入"就是所有参数，"输出"就是损失 L。梯度的每个分量告诉我们一个参数该往哪边拧、它对损失的影响有多敏感。本章说"求梯度"，指的就是求出 ∂L/∂(每一个参数)。
 
@@ -166,17 +166,19 @@ L(w + Δw) − L(w) = −8Δw + 4Δw²
 
 数学表达式也一样。看这个式子：
 
-```
-L = (a·b + c)²，其中 a = 2，b = −3，c = 10
-```
+$$
+L=(a\cdot b+c)^2,\qquad a=2,\quad b=-3,\quad c=10
+$$
 
 我们把它拆成三步，给每个中间结果起个名字：
 
-```
-d = a · b        乘法
-e = d + c        加法
-L = e²           平方
-```
+$$
+\begin{aligned}
+d &= a\cdot b && \text{乘法} \\
+e &= d+c && \text{加法} \\
+L &= e^2 && \text{平方}
+\end{aligned}
+$$
 
 画成图（箭头表示"数据从哪里流向哪里"）：
 
@@ -200,11 +202,13 @@ c ────────────┘
 
 沿着箭头的方向，从叶子算到根，叫**前向计算**（forward pass）。每个节点都等它的输入算好了再算（实验脚本第 2 部分）：
 
-```
-d = a · b = 2 × (−3) = −6
-e = d + c = −6 + 10 = 4
-L = e²   = 4² = 16
-```
+$$
+\begin{aligned}
+d &= a\cdot b = 2\times(-3) = -6 \\
+e &= d+c = -6+10 = 4 \\
+L &= e^2 = 4^2 = 16
+\end{aligned}
+$$
 
 前向计算你天天都在做，写 `L = (a * b + c) ** 2` 就是。计算图只是把这个过程画了出来。
 
@@ -244,9 +248,9 @@ x ──(×3, +1)── u ──(²)── y
 
 链式法则说：
 
-```
-dy/dx = (dy/du) · (du/dx) = 8 × 3 = 24
-```
+$$
+\frac{dy}{dx} = \frac{dy}{du}\cdot\frac{du}{dx} = 8\times3 = 24
+$$
 
 为什么是相乘？用 2.2.1 节"放大倍数"的含义来想：x 变化一点点 Δx，u 就变化 3Δx；u 变化 3Δx，y 就变化 8 × 3Δx = 24Δx。两级放大串起来，总的放大倍数就是两个倍数的乘积。
 
@@ -264,31 +268,35 @@ dy/dx = (dy/du) · (du/dx) = 8 × 3 = 24
 
 **第 0 步：起点。** L 对自己的导数当然是 1：
 
-```
-∂L/∂L = 1
-```
+$$
+\frac{\partial L}{\partial L} = 1
+$$
 
 **第 1 步：经过平方节点，到达 e。** 平方节点的局部导数是 2e = 8：
 
-```
-∂L/∂e = ∂L/∂L × ∂L/∂e（局部） = 1 × 8 = 8
-```
+$$
+\frac{\partial L}{\partial e} = \frac{\partial L}{\partial L}\times\underbrace{\frac{\partial L}{\partial e}}_{\text{局部}} = 1\times8 = 8
+$$
 
 平方节点的输出就是 L 本身，所以它的局部导数 dL/de 恰好就是我们要的 ∂L/∂e。这里仍然写成"1 × 局部导数"，是为了和后面每一步的格式一样。意思是：e 增加一点点，L 增加约 8 倍那么多。
 
 **第 2 步：经过加法节点，到达 d 和 c。** 加法节点对两个输入的局部导数都是 1：
 
-```
-∂L/∂d = ∂L/∂e × ∂e/∂d = 8 × 1 = 8
-∂L/∂c = ∂L/∂e × ∂e/∂c = 8 × 1 = 8
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial d} &= \frac{\partial L}{\partial e}\times\frac{\partial e}{\partial d} = 8\times1 = 8 \\
+\frac{\partial L}{\partial c} &= \frac{\partial L}{\partial e}\times\frac{\partial e}{\partial c} = 8\times1 = 8
+\end{aligned}
+$$
 
 **第 3 步：经过乘法节点，到达 a 和 b。** 乘法节点的局部导数是"对方的值"：
 
-```
-∂L/∂a = ∂L/∂d × ∂d/∂a = 8 × b = 8 × (−3) = −24
-∂L/∂b = ∂L/∂d × ∂d/∂b = 8 × a = 8 × 2   = 16
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial a} &= \frac{\partial L}{\partial d}\times\frac{\partial d}{\partial a} = 8\times b = 8\times(-3) = -24 \\
+\frac{\partial L}{\partial b} &= \frac{\partial L}{\partial d}\times\frac{\partial d}{\partial b} = 8\times a = 8\times2 = 16
+\end{aligned}
+$$
 
 结果：∂L/∂a = −24，∂L/∂b = 16，∂L/∂c = 8。实验脚本第 2 部分用 PyTorch 算了同一个式子，三个梯度完全一样（本项目观察）。
 
@@ -306,9 +314,9 @@ c ──────────────┘
 
 **规律：每个节点的梯度 = 它下游节点的梯度 × 连接它们的局部导数。** 下游节点的梯度又叫**上游梯度**（upstream gradient）。叫"上游"，是因为在反向传播里梯度是从 L 那一头流过来的，L 那一头是梯度的源头。本书以后都这样叫：
 
-```
-本节点的梯度 = 上游梯度 × 局部导数
-```
+$$
+\text{本节点的梯度} = \text{上游梯度}\times\text{局部导数}
+$$
 
 剩下的都是工程问题：按什么顺序走、分叉了怎么办、怎样让计算机自动做。
 
@@ -382,9 +390,9 @@ relu 的"开关"也有类似的问题：输入为负时梯度是精确的 0。�
 
 看最简单的例子：
 
-```
-f = x · x，在 x = 3 处
-```
+$$
+f=x\cdot x,\qquad x=3
+$$
 
 画成图，x 同时连到乘法节点的两个输入上：
 
@@ -405,23 +413,25 @@ x 的梯度是 3 还是 6？
 
 为什么是相加？我们换个写法，把"同一个 x 的两次使用"拆成两个变量：
 
-```
-f = p · q，其中 p = x，q = x
-```
+$$
+f=p\cdot q,\qquad p=x,\quad q=x
+$$
 
 现在让 x 变化一点点 Δx。p 和 q 都跟着变化 Δx。f 的变化有两个来源。按 2.2.2 节，每个偏导数只描述"单独动一个输入"时 f 的变化；几个输入同时动一点点时，f 的总变化近似等于各自引起的变化之和，这就是下面第一行：
 
-```
-Δf ≈ (∂f/∂p)·Δp + (∂f/∂q)·Δq        （多元函数的一阶近似）
-   = (∂f/∂p)·Δx + (∂f/∂q)·Δx
-   = (∂f/∂p + ∂f/∂q)·Δx
-```
+$$
+\begin{aligned}
+\Delta f &\approx \frac{\partial f}{\partial p}\Delta p + \frac{\partial f}{\partial q}\Delta q \qquad \text{（多元函数的一阶近似）} \\
+&= \frac{\partial f}{\partial p}\Delta x + \frac{\partial f}{\partial q}\Delta x \\
+&= \left(\frac{\partial f}{\partial p}+\frac{\partial f}{\partial q}\right)\Delta x
+\end{aligned}
+$$
 
 所以：
 
-```
-df/dx = ∂f/∂p + ∂f/∂q = q + p = 3 + 3 = 6
-```
+$$
+\frac{df}{dx} = \frac{\partial f}{\partial p}+\frac{\partial f}{\partial q} = q+p = 3+3 = 6
+$$
 
 这是**多元链式法则**（数学结论）：
 
@@ -513,25 +523,31 @@ x2 ──┴──→ z2 = w21·x1 + w22·x2 + b2 ──relu──→ a2 ──�
 
 **隐藏神经元 1：**
 
-```
-z1 = w11·x1 + w12·x2 + b1 = 1×2 + (−1)×1 + 0.5 = 2 − 1 + 0.5 = 1.5
-a1 = relu(z1) = relu(1.5) = 1.5
-```
+$$
+\begin{aligned}
+z_1 &= w_{11}x_1+w_{12}x_2+b_1 = 1\times2+(-1)\times1+0.5 = 2-1+0.5 = 1.5 \\
+a_1 &= \operatorname{relu}(z_1) = \operatorname{relu}(1.5) = 1.5
+\end{aligned}
+$$
 
 **隐藏神经元 2：**
 
-```
-z2 = w21·x1 + w22·x2 + b2 = 0.5×2 + 1×1 + (−1) = 1 + 1 − 1 = 1
-a2 = relu(z2) = relu(1) = 1
-```
+$$
+\begin{aligned}
+z_2 &= w_{21}x_1+w_{22}x_2+b_2 = 0.5\times2+1\times1+(-1) = 1+1-1 = 1 \\
+a_2 &= \operatorname{relu}(z_2) = \operatorname{relu}(1) = 1
+\end{aligned}
+$$
 
 **输出和损失：**
 
-```
-ŷ = v1·a1 + v2·a2 + c = 1×1.5 + (−1)×1 + 0.5 = 1
-e = ŷ − y = 1 − 2 = −1
-L = e² = 1
-```
+$$
+\begin{aligned}
+\hat y &= v_1a_1+v_2a_2+c = 1\times1.5+(-1)\times1+0.5 = 1 \\
+e &= \hat y-y = 1-2 = -1 \\
+L &= e^2 = 1
+\end{aligned}
+$$
 
 前向结果汇总（第 4 部分）：
 
@@ -547,60 +563,72 @@ L = e² = 1
 
 **第 1 步：损失层。** L = e²，局部导数 2e：
 
-```
-∂L/∂L = 1
-∂L/∂e = 1 × 2e = 2 × (−1) = −2
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial L} &= 1 \\
+\frac{\partial L}{\partial e} &= 1\times2e = 2\times(-1) = -2
+\end{aligned}
+$$
 
 e = ŷ − y，对 ŷ 的局部导数是 1：
 
-```
-∂L/∂ŷ = −2 × 1 = −2
-```
+$$
+\frac{\partial L}{\partial\hat y} = -2\times1 = -2
+$$
 
 **解读：** ∂L/∂ŷ = −2 是负数，意思是"ŷ 变大，L 变小"。和直觉一致：预测偏小，应该变大。
 
 **第 2 步：输出层。** ŷ = v1·a1 + v2·a2 + c。加法把 −2 原样分给三项；每个乘法再"交换"：
 
-```
-∂L/∂c  = −2 × 1  = −2
-∂L/∂v1 = −2 × a1 = −2 × 1.5 = −3
-∂L/∂v2 = −2 × a2 = −2 × 1   = −2
-∂L/∂a1 = −2 × v1 = −2 × 1    = −2
-∂L/∂a2 = −2 × v2 = −2 × (−1) = 2
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial c} &= -2\times1 = -2 \\
+\frac{\partial L}{\partial v_1} &= -2\times a_1 = -2\times1.5 = -3 \\
+\frac{\partial L}{\partial v_2} &= -2\times a_2 = -2\times1 = -2 \\
+\frac{\partial L}{\partial a_1} &= -2\times v_1 = -2\times1 = -2 \\
+\frac{\partial L}{\partial a_2} &= -2\times v_2 = -2\times(-1) = 2
+\end{aligned}
+$$
 
 **解读：** ∂L/∂a2 = 2 是正数。a2 通过一个负权重 v2 = −1 连到输出，a2 变大会让 ŷ 变小、L 变大。所以"责任"的符号翻转了。
 
 **第 3 步：relu。** relu 是开关：z > 0 时梯度原样通过。z1 = 1.5 > 0，z2 = 1 > 0，两个开关都开着：
 
-```
-∂L/∂z1 = ∂L/∂a1 × 1 = −2
-∂L/∂z2 = ∂L/∂a2 × 1 = 2
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial z_1} &= \frac{\partial L}{\partial a_1}\times1 = -2 \\
+\frac{\partial L}{\partial z_2} &= \frac{\partial L}{\partial a_2}\times1 = 2
+\end{aligned}
+$$
 
 **第 4 步：隐藏层的参数。** z1 = w11·x1 + w12·x2 + b1，加法分发、乘法交换：
 
-```
-∂L/∂w11 = ∂L/∂z1 × x1 = −2 × 2 = −4
-∂L/∂w12 = ∂L/∂z1 × x2 = −2 × 1 = −2
-∂L/∂b1  = ∂L/∂z1 × 1  = −2
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial w_{11}} &= \frac{\partial L}{\partial z_1}\times x_1 = -2\times2 = -4 \\
+\frac{\partial L}{\partial w_{12}} &= \frac{\partial L}{\partial z_1}\times x_2 = -2\times1 = -2 \\
+\frac{\partial L}{\partial b_1} &= \frac{\partial L}{\partial z_1}\times1 = -2
+\end{aligned}
+$$
 
 隐藏神经元 2 同理：
 
-```
-∂L/∂w21 = ∂L/∂z2 × x1 = 2 × 2 = 4
-∂L/∂w22 = ∂L/∂z2 × x2 = 2 × 1 = 2
-∂L/∂b2  = ∂L/∂z2 × 1  = 2
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial w_{21}} &= \frac{\partial L}{\partial z_2}\times x_1 = 2\times2 = 4 \\
+\frac{\partial L}{\partial w_{22}} &= \frac{\partial L}{\partial z_2}\times x_2 = 2\times1 = 2 \\
+\frac{\partial L}{\partial b_2} &= \frac{\partial L}{\partial z_2}\times1 = 2
+\end{aligned}
+$$
 
 **第 5 步：输入（梯度相加）。** 训练时我们不改输入，所以 ∂L/∂x 用不上。但它很好地展示了 2.5 节的规则：x1 同时被两个隐藏神经元用到，有两条路径：
 
-```
-∂L/∂x1 = ∂L/∂z1 × w11 + ∂L/∂z2 × w21 = (−2)×1 + 2×0.5 = −2 + 1 = −1
-∂L/∂x2 = ∂L/∂z1 × w12 + ∂L/∂z2 × w22 = (−2)×(−1) + 2×1 = 2 + 2 = 4
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial x_1} &= \frac{\partial L}{\partial z_1}w_{11}+\frac{\partial L}{\partial z_2}w_{21} = (-2)\times1+2\times0.5 = -2+1 = -1 \\
+\frac{\partial L}{\partial x_2} &= \frac{\partial L}{\partial z_1}w_{12}+\frac{\partial L}{\partial z_2}w_{22} = (-2)\times(-1)+2\times1 = 2+2 = 4
+\end{aligned}
+$$
 
 如果只算一条路径，比如只算第一项，∂L/∂x1 就成了 −2，错了一倍。
 
@@ -637,9 +665,9 @@ e = ŷ − y，对 ŷ 的局部导数是 1：
 
 梯度算出来了，按第 4 章会详细讲的**梯度下降**更新参数：
 
-```
-新参数 = 旧参数 − 学习率 × 梯度
-```
+$$
+\text{新参数} = \text{旧参数}-\text{学习率}\times\text{梯度}
+$$
 
 学习率取 0.02（第 4 部分）：
 
@@ -659,9 +687,9 @@ e = ŷ − y，对 ŷ 的局部导数是 1：
 
 **一阶近似的预测。** 按 2.2.1 节"导数是放大倍数"，每个参数 θ 变化 Δθ，损失大约变化 Σ(梯度 × Δθ)，所有参数的贡献相加（2.5.2 节）。沿负梯度走一步时 Δθ = −学习率 × 梯度，代进去，每一项都变成 −学习率 × 梯度²，所以损失大约下降：
 
-```
-学习率 × Σ(每个梯度的平方) = 0.02 × (16 + 4 + 4 + 16 + 4 + 4 + 9 + 4 + 4) = 0.02 × 65 = 1.3
-```
+$$
+\text{学习率}\times\sum\text{每个梯度的平方} = 0.02\times(16+4+4+16+4+4+9+4+4) = 0.02\times65 = 1.3
+$$
 
 预测下降 1.3，实际下降 0.88（数学结论 + 本项目观察，第 4 部分）。预测甚至超过了损失本身（损失不可能小于 0），说明这一步已经大到让"线性近似"明显失准了。
 
@@ -673,18 +701,22 @@ e = ŷ − y，对 ŷ 的局部导数是 1：
 
 把 w21 改成 −1、目标 y 改成 3，其余不变（第 4 部分）：
 
-```
-z2 = (−1)×2 + 1×1 + (−1) = −2，a2 = relu(−2) = 0
-ŷ = 1×1.5 + (−1)×0 + 0.5 = 2，e = −1，L = 1
-```
+$$
+\begin{aligned}
+z_2 &= (-1)\times2+1\times1+(-1) = -2,\qquad a_2 = \operatorname{relu}(-2) = 0 \\
+\hat y &= 1\times1.5+(-1)\times0+0.5 = 2,\qquad e=-1,\quad L=1
+\end{aligned}
+$$
 
 反向时，∂L/∂a2 = −2 × v2 = 2，仍然不是 0。但 relu 的开关关着，到 z2 就被挡住了：
 
-```
-∂L/∂z2 = 2 × 0 = 0
-∂L/∂w21 = ∂L/∂w22 = ∂L/∂b2 = 0
-∂L/∂v2 = −2 × a2 = −2 × 0 = 0
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial z_2} &= 2\times0 = 0 \\
+\frac{\partial L}{\partial w_{21}} &= \frac{\partial L}{\partial w_{22}} = \frac{\partial L}{\partial b_2} = 0 \\
+\frac{\partial L}{\partial v_2} &= -2\times a_2 = -2\times0 = 0
+\end{aligned}
+$$
 
 隐藏神经元 2 的全部参数、以及连接它的 v2，梯度都是 0，这一步什么都学不到。如果对**所有**训练样本 z2 都是负的，在这个例子里（第一层、输入是固定的原始数据、纯梯度下降）这个神经元就永远学不动了，这叫**死亡 relu**（dying ReLU）。更深的网络里，输入来自可训练的上游表示，别的路径的更新可能让它重新激活，所以死亡 relu 应理解为风险，而不是一定不可逆。这也是 2.4.3 节说的第二处不准确：神经元 2 对结果当然"有关系"（它决定了 a2 = 0），但它的梯度是 0。
 
@@ -987,10 +1019,12 @@ print(w11.grad, w21.grad, x1.grad)     # -4.0 4.0 -1.0
 
 "试一下"的正式名字是**有限差分**（finite difference）。有两种常用写法：
 
-```
-前向差分：f′(x) ≈ [f(x + h) − f(x)] / h
-中心差分：f′(x) ≈ [f(x + h) − f(x − h)] / (2h)
-```
+$$
+\begin{aligned}
+\text{前向差分：}\quad f'(x) &\approx \frac{f(x+h)-f(x)}{h} \\
+\text{中心差分：}\quad f'(x) &\approx \frac{f(x+h)-f(x-h)}{2h}
+\end{aligned}
+$$
 
 h 叫**步长**。前向差分只往右试一步；中心差分左右各试一步，用两点连线的斜率近似切线的斜率。
 
@@ -1004,26 +1038,32 @@ h 叫**步长**。前向差分只往右试一步；中心差分左右各试一�
 
 **前向差分的误差。** 把泰勒展开代进前向差分：
 
-```
-[f(x + h) − f(x)] / h = [h·f′ + (h²/2)·f″ + (h³/6)·f‴ + …] / h
-                      = f′ + (h/2)·f″ + (h²/6)·f‴ + …
-```
+$$
+\begin{aligned}
+\frac{f(x+h)-f(x)}{h} &= \frac{hf'+\frac{h^2}{2}f''+\frac{h^3}{6}f^{(3)}+\cdots}{h} \\
+&= f'+\frac h2 f''+\frac{h^2}{6}f^{(3)}+\cdots
+\end{aligned}
+$$
 
 和真正的 f′ 相比，多出来的部分以 (h/2)·f″ 为主。误差和 h 成正比，记作 O(h)。h 缩小 10 倍，误差缩小约 10 倍（数学结论）。
 
 **中心差分的误差。** 把 h 换成 −h，得到 f(x − h) 的展开：
 
-```
-f(x + h) = f + h·f′ + (h²/2)·f″ + (h³/6)·f‴ + …
-f(x − h) = f − h·f′ + (h²/2)·f″ − (h³/6)·f‴ + …
-```
+$$
+\begin{aligned}
+f(x+h) &= f+hf'+\frac{h^2}{2}f''+\frac{h^3}{6}f^{(3)}+\cdots \\
+f(x-h) &= f-hf'+\frac{h^2}{2}f''-\frac{h^3}{6}f^{(3)}+\cdots
+\end{aligned}
+$$
 
 两式相减，偶数次项（f、f″）正好抵消：
 
-```
-f(x + h) − f(x − h) = 2h·f′ + (h³/3)·f‴ + …
-[f(x + h) − f(x − h)] / (2h) = f′ + (h²/6)·f‴ + …
-```
+$$
+\begin{aligned}
+f(x+h)-f(x-h) &= 2hf'+\frac{h^3}{3}f^{(3)}+\cdots \\
+\frac{f(x+h)-f(x-h)}{2h} &= f'+\frac{h^2}{6}f^{(3)}+\cdots
+\end{aligned}
+$$
 
 误差以 (h²/6)·f‴ 为主，和 h² 成正比，记作 O(h²)。h 缩小 10 倍，误差缩小约 100 倍（数学结论）。
 
@@ -1039,9 +1079,9 @@ f(x + h) − f(x − h) = 2h·f′ + (h³/3)·f‴ + …
 
 **总误差 = 截断误差 + 舍入误差：**
 
-```
-中心差分：总误差 ≈ (h²/6)·|f‴| + ε·|f| / h
-```
+$$
+\text{中心差分的总误差} \approx \frac{h^2}{6}|f^{(3)}|+\frac{\varepsilon|f|}{h}
+$$
 
 第一项随 h 减小而减小，第二项随 h 减小而增大。两项相当时总误差最小，此时 h 的量级是 ε^(1/3)（数学结论：对 h 求导令其为 0，得 h = (3ε|f|/|f‴|)^(1/3)，常数因子在 1 附近时就是 ε^(1/3) 的量级）。同理，前向差分的最佳步长是 √ε 的量级。
 
@@ -1057,10 +1097,12 @@ f(x + h) − f(x − h) = 2h·f′ + (h³/3)·f‴ + …
 
 理论说完了，实测一下。函数选一个单个神经元的损失：
 
-```
-f(w) = (tanh(1.5w) − 0.3)²，在 w = 0.7 处
-解析导数 = 2(tanh(1.05) − 0.3)·(1 − tanh²(1.05))·1.5 = 0.5619483204
-```
+$$
+\begin{aligned}
+f(w) &= (\tanh(1.5w)-0.3)^2,\qquad w=0.7 \\
+\text{解析导数} &= 2(\tanh(1.05)-0.3)(1-\tanh^2(1.05))\times1.5 = 0.5619483204
+\end{aligned}
+$$
 
 h 从 1e-1 一直减小到 1e-12，分别用 float64 的前向差分、float64 的中心差分、float32 的中心差分估计导数，算出和解析导数的相对误差（相对误差的定义见 2.8.6 节）。结果如下（本项目观察，第 6 部分）：
 
@@ -1100,9 +1142,9 @@ h 从 1e-1 一直减小到 1e-12，分别用 float64 的前向差分、float64 �
 
 直接看差 |a − n| 不行。梯度本身可能是 1000，也可能是 0.001，同样差 0.01，前者几乎完全一致，后者错了十倍。所以要看**相对误差**：
 
-```
-相对误差 = |a − n| / max(|a|, |n|)
-```
+$$
+\text{相对误差} = \frac{|a-n|}{\max(|a|,|n|)}
+$$
 
 分母取两者中较大的绝对值，这样它总在 0 到 1 之间（a、n 同号时），而且 a、n 互换结果不变。第 3 章的 3.9.4 节会用另一种常见写法，分母取 |a| + |n|。因为 max(|a|, |n|) ≤ |a| + |n| ≤ 2·max(|a|, |n|)，两种写法最多差 2 倍（数学结论）。下面的阈值只看量级，两种写法都可以用；记录结果时写明用的是哪一种。
 
@@ -1495,10 +1537,12 @@ class MLP:
 
 **损失：合页损失（hinge loss）。**
 
-```
-单个样本：ℓ = max(0, 1 − y·s)
-整批：    L = (ℓ₁ + ℓ₂ + … + ℓ_N) / N
-```
+$$
+\begin{aligned}
+\text{单个样本：}\quad \ell &= \max(0,1-y\cdot s) \\
+\text{整批：}\quad L &= \frac{\ell_1+\ell_2+\cdots+\ell_N}{N}
+\end{aligned}
+$$
 
 怎样理解：y·s > 0 表示分对了；y·s ≥ 1 表示"分对了，而且有把握"，这时损失为 0，不再推它；否则损失是 1 − y·s，y·s 越小损失越大：在这个区域里损失对 y·s 的导数是 −1，y·s 每增大 1，损失就线性减小 1，直到 y·s 达到 1 为止。它用 relu 就能写出来：`(1 - y * s).relu()`。
 

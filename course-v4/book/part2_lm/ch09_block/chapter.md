@@ -86,10 +86,12 @@ Transformer 块就是"开一次会 + 回工位想一次"：
 
 写成两行公式：
 
-```
-x = x + Attn(Norm(x))
-x = x + MLP(Norm(x))
-```
+$$
+\begin{aligned}
+x &= x+\operatorname{Attn}(\operatorname{Norm}(x)) \\
+x &= x+\operatorname{MLP}(\operatorname{Norm}(x))
+\end{aligned}
+$$
 
 记住三个要点：
 
@@ -148,15 +150,15 @@ x = x + MLP(Norm(x))
 
 先看最简单的标量情况：
 
-```
-y = x + f(x)
-```
+$$
+y=x+f(x)
+$$
 
 求导：
 
-```
-dy/dx = 1 + f′(x)
-```
+$$
+\frac{dy}{dx}=1+f'(x)
+$$
 
 比起没有残差的 f′(x)，导数多出来一个 **1**。下面看它在多层时起什么作用。
 
@@ -164,19 +166,20 @@ dy/dx = 1 + f′(x)
 
 现在把 L 层连起来。设第 l 层是 x_l = x_{l−1} + f_l(x_{l−1})，记 a_l = f_l′(x_{l−1})。由上面的标量结论，每一层的局部导数是 dx_l / dx_{l−1} = 1 + a_l。x_L 经过 x_{L−1}、x_{L−2}……一路依赖到 x_0，按链式法则，最后一层对第一层输入的导数是这些局部导数相乘：
 
-```
-dx_L / dx_0 = (1 + a_L)(1 + a_{L−1}) ··· (1 + a_1)
-```
+$$
+\frac{dx_L}{dx_0}=(1+a_L)(1+a_{L-1})\cdots(1+a_1)
+$$
 
 把乘积展开。展开的规则是：从每个括号里挑 1 或 a_l 中的一个，把挑出来的数乘起来，所有挑法的结果加在一起。L 层有 2^L 种挑法，就有 2^L 项。以 3 层为例，共 8 项：
 
-```
-(1 + a_3)(1 + a_2)(1 + a_1)
-  = 1
-  + a_1 + a_2 + a_3
-  + a_1 a_2 + a_1 a_3 + a_2 a_3
-  + a_1 a_2 a_3
-```
+$$
+\begin{aligned}
+(1+a_3)(1+a_2)(1+a_1) &= 1 \\
+&\quad+a_1+a_2+a_3 \\
+&\quad+a_1a_2+a_1a_3+a_2a_3 \\
+&\quad+a_1a_2a_3
+\end{aligned}
+$$
 
 每一项都可以看成梯度从顶层走到底层的一条**路径**：
 
@@ -188,9 +191,9 @@ dx_L / dx_0 = (1 + a_L)(1 + a_{L−1}) ··· (1 + a_1)
 
 对比一下没有残差的网络 x_l = f_l(x_{l−1})：
 
-```
-dx_L / dx_0 = a_L · a_{L−1} ··· a_1
-```
+$$
+\frac{dx_L}{dx_0}=a_La_{L-1}\cdots a_1
+$$
 
 只剩最后那一项，也就是"经过所有层"的那条路。如果每个 a_l 的绝对值都是 0.5，10 层以后是 0.5¹⁰ ≈ 0.00098；如果都是 2，10 层以后是 2¹⁰ = 1024（数学结论）。乘积对每个因子都很敏感，层数一多，不是消失就是爆炸。
 
@@ -198,9 +201,9 @@ dx_L / dx_0 = a_L · a_{L−1} ··· a_1
 
 真实网络里 x 是向量，导数是矩阵（雅可比矩阵），上面的 1 换成单位矩阵 I：
 
-```
-∂x_L / ∂x_0 = (I + J_L)(I + J_{L−1}) ··· (I + J_1)
-```
+$$
+\frac{\partial x_L}{\partial x_0}=(I+J_L)(I+J_{L-1})\cdots(I+J_1)
+$$
 
 道理一样：展开以后有一项 I，代表直达通路。
 
@@ -266,13 +269,15 @@ class NoResidualBlock(Block):
 
 有了残差，可以换一种方式看网络：所有层共用一块**白板**，叫**残差流**（residual stream）：
 
-```
-x_0 = 嵌入
-x_1 = x_0 + 第 1 层注意力写的东西
-x_2 = x_1 + 第 1 层前馈网络写的东西
-x_3 = x_2 + 第 2 层注意力写的东西
-...
-```
+$$
+\begin{aligned}
+x_0 &= \text{嵌入} \\
+x_1 &= x_0+\text{第 1 层注意力写的东西} \\
+x_2 &= x_1+\text{第 1 层前馈网络写的东西} \\
+x_3 &= x_2+\text{第 2 层注意力写的东西} \\
+&\vdots
+\end{aligned}
+$$
 
 每个子层都是先**读**白板（经过归一化），再把自己的结论**写**回白板（加上去）。子层不会把白板擦掉重写，只能往上加；加负数可以抵消一部分已有内容（9.2.1 节）。最后，输出层读白板上的最终内容，给出预测。
 
@@ -297,12 +302,14 @@ x_3 = x_2 + 第 2 层注意力写的东西
 
 LayerNorm（层归一化，Ba、Kiros、Hinton，2016，arXiv:1607.06450）对**每个 token 的 d 维特征**分别做"标准分"换算。设某个 token 的向量是 x = (x_1, …, x_d)：
 
-```
-μ  = (1/d) Σ_i x_i                       均值
-σ² = (1/d) Σ_i (x_i − μ)²                方差（除以 d，不是 d − 1）
-x̂_i = (x_i − μ) / √(σ² + ε)              标准化
-y_i = γ_i · x̂_i + β_i                    缩放和平移
-```
+$$
+\begin{aligned}
+\mu &= \frac1d\sum_i x_i && \text{均值} \\
+\sigma^2 &= \frac1d\sum_i(x_i-\mu)^2 && \text{方差（除以 }d\text{，不是 }d-1\text{）} \\
+\hat x_i &= \frac{x_i-\mu}{\sqrt{\sigma^2+\varepsilon}} && \text{标准化} \\
+y_i &= \gamma_i\hat x_i+\beta_i && \text{缩放和平移}
+\end{aligned}
+$$
 
 几点说明：
 
@@ -324,10 +331,12 @@ y_i = γ_i · x̂_i + β_i                    缩放和平移
 
 RMSNorm（Zhang 和 Sennrich，2019，arXiv:1910.07467）把 LayerNorm 再简化一步：**不减均值，也不要 β**。
 
-```
-RMS(x) = √( (1/d) Σ_i x_i² + ε )         均方根
-y_i    = γ_i · x_i / RMS(x)
-```
+$$
+\begin{aligned}
+\operatorname{RMS}(x) &= \sqrt{\frac1d\sum_i x_i^2+\varepsilon} && \text{均方根} \\
+y_i &= \frac{\gamma_i x_i}{\operatorname{RMS}(x)}
+\end{aligned}
+$$
 
 只剩一个可学习的 γ，d 个参数。
 
@@ -428,21 +437,25 @@ LayerNorm 和 RMSNorm 只看一个 token 自己的 d 维，没有这些问题。
 
 **Post-Norm**（归一化在后）。2017 年原始的 Transformer 论文就是这样：
 
-```
-x = Norm(x + Attn(x))
-x = Norm(x + MLP(x))
-```
+$$
+\begin{aligned}
+x &= \operatorname{Norm}(x+\operatorname{Attn}(x)) \\
+x &= \operatorname{Norm}(x+\operatorname{MLP}(x))
+\end{aligned}
+$$
 
 先加残差，再归一化。
 
 **Pre-Norm**（归一化在前）。GPT-2 把归一化挪到了每个子层的输入处，并在最后一个块之后再加一个归一化（Radford 等，2019，GPT-2 技术报告第 2.3 节）：
 
-```
-x = x + Attn(Norm(x))
-x = x + MLP(Norm(x))
-...（L 个块之后）
-x = Norm(x)                    最后的归一化（final norm）
-```
+$$
+\begin{aligned}
+x &= x+\operatorname{Attn}(\operatorname{Norm}(x)) \\
+x &= x+\operatorname{MLP}(\operatorname{Norm}(x)) \\
+&\vdots\qquad\text{（}L\text{ 个块之后）} \\
+x &= \operatorname{Norm}(x)\qquad\text{最后的归一化（final norm）}
+\end{aligned}
+$$
 
 两种写法只是把 Norm 挪了个位置，差别却不小。
 
@@ -526,9 +539,9 @@ Pre-Norm 也不是没有缺点。白板越来越大，后面的层写上去的�
 
 块的第二个子层是前馈网络。原始 Transformer 和 GPT-2 用的是最普通的两层 MLP。GPT-2 的写法是：
 
-```
-FFN(x) = W_down · GELU(W_up · x)         W_up: (4d, d)，W_down: (d, 4d)
-```
+$$
+\operatorname{FFN}(x)=W_{\mathrm{down}}\operatorname{GELU}(W_{\mathrm{up}}x),\quad W_{\mathrm{up}}:(4d,d),\quad W_{\mathrm{down}}:(d,4d)
+$$
 
 先把 d 维**升到** 4d 维，过一个非线性激活（GELU，一个平滑版的 ReLU），再**降回** d 维。原始 Transformer 结构相同，只是激活用的是 ReLU。
 
@@ -540,9 +553,9 @@ FFN(x) = W_down · GELU(W_up · x)         W_up: (4d, d)，W_down: (d, 4d)
 
 SwiGLU 在这个基础上加了一个**门**（gate）：
 
-```
-SwiGLU(x) = W_down · ( SiLU(W_gate · x) ⊙ (W_up · x) )
-```
+$$
+\operatorname{SwiGLU}(x)=W_{\mathrm{down}}\left(\operatorname{SiLU}(W_{\mathrm{gate}}x)\odot(W_{\mathrm{up}}x)\right)
+$$
 
 - W_gate、W_up：都是 (f, d)，把 x 升到 f 维。
 - SiLU(z) = z · σ(z)，σ 是 sigmoid。z 很大时 SiLU(z) ≈ z，z 很负时 SiLU(z) ≈ 0，中间平滑过渡。
@@ -588,12 +601,14 @@ W_gate = [[ 1, -2],      W_up = [[2,  1],      W_down = [[ 1, 2],
 
 SwiGLU 有三个矩阵，普通 MLP 只有两个。如果中间维还用 4d，参数会多 50%。为了公平比较，要让两者参数量相等：
 
-```
-普通 MLP：  2 · d · h     （h 是中间维）
-SwiGLU：    3 · d · f     （f 是中间维）
-令 h = 4d，2 · d · 4d = 3 · d · f
-           f = 8d / 3 ≈ 2.67d
-```
+$$
+\begin{aligned}
+\text{普通 MLP：}\quad &2dh\qquad\text{（}h\text{ 是中间维）} \\
+\text{SwiGLU：}\quad &3df\qquad\text{（}f\text{ 是中间维）} \\
+\text{令 }h=4d:\quad &2d\cdot4d=3df \\
+&f=\frac{8d}{3}\approx2.67d
+\end{aligned}
+$$
 
 最后一步是把 8d² = 3df 两边同除以 3d。这就是 8d/3 的来历（数学结论）。
 
@@ -717,12 +732,14 @@ def forward(self, x):
 
 参数量公式（数学结论；没有偏置）：
 
-```
-注意力：     4 · d²        = 4 × 64²      = 16,384
-前馈网络：   3 · d · f     = 3 × 64 × 192 = 36,864
-两个归一化： 2 · d         = 2 × 64       =    128
-合计                                       = 53,376
-```
+$$
+\begin{aligned}
+\text{注意力：}\quad &4d^2=4\times64^2=16{,}384 \\
+\text{前馈网络：}\quad &3df=3\times64\times192=36{,}864 \\
+\text{两个归一化：}\quad &2d=2\times64=128 \\
+\text{合计：}\quad &53{,}376
+\end{aligned}
+$$
 
 代码实际统计也是 53,376（本项目观察，第 6 部分）。
 

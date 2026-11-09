@@ -95,10 +95,12 @@ ViT 不按像素切，按小方块切。
 
 **第一步，拆坐标。** 行号 h 写成第几行 patch（i）和 patch 内第几行（u）：
 
-```text
-h = i·p + u,   i = 0…g_h−1,  u = 0…p−1
-w = j·p + v,   j = 0…g_w−1,  v = 0…p−1
-```
+$$
+\begin{aligned}
+h &= i\cdot p+u,\qquad i=0,\ldots,g_h-1,\quad u=0,\ldots,p-1 \\
+w &= j\cdot p+v,\qquad j=0,\ldots,g_w-1,\quad v=0,\ldots,p-1
+\end{aligned}
+$$
 
 比如 p = 4 时，第 9 行像素 h = 9 = 2·4 + 1，落在第 2 行 patch 的第 1 行（都从 0 数）。因为张量按行优先存储，把长度 H 的轴看成 (g_h, p) 两个轴，不需要搬动任何数据。所以第一次 reshape 是
 
@@ -114,17 +116,19 @@ permute(0, 2, 4, 1, 3, 5)  →  (B, g_h, g_w, C, p, p)   下标 [b, i, j, c, u, 
 
 **第三步，合并。** 把 (i, j) 合成 token 编号，把 (c, u, v) 合成特征编号：
 
-```text
-reshape → (B, g_h·g_w, C·p·p)
-token 编号   n = i·g_w + j              （网格行优先）
-特征编号     f = c·p² + u·p + v          （patch 内先通道，再行，再列）
-```
+$$
+\begin{aligned}
+\mathrm{reshape}&\longrightarrow(B,g_h\cdot g_w,C\cdot p\cdot p) \\
+\text{token 编号：}\quad n &= i\cdot g_w+j\qquad\text{（网格行优先）} \\
+\text{特征编号：}\quad f &= c\cdot p^2+u\cdot p+v\qquad\text{（patch 内先通道，再行，再列）}
+\end{aligned}
+$$
 
 **第四步，投影。** 每个 patch 是一个长 C·p² 的向量 x_n，乘一个 (D, C·p²) 的矩阵 E，加偏置 b：
 
-```text
-z_n = E·x_n + b,     z 的形状 (B, N, D)
-```
+$$
+z_n=E\cdot x_n+b,\qquad z\text{ 的形状 }(B,N,D)
+$$
 
 这里的 b 是长 D 的偏置向量，和上面下标 x[b, c, h, w] 里表示第几个样本的 b 不是一回事。E 对所有 n 都一样。参数量是 D·C·p² + D（数学结论），本章小 ViT 是 64·1·16 + 64 = 1088。
 
@@ -175,15 +179,15 @@ token 0：z₀ = (0+1+6+7, 0−7+10) = (14, 3)。token 4：z₄ = (14+15+20+21, 
 
 回顾第 28 章：卷积第 d 个输出通道在位置 (i, j) 的值是
 
-```text
-y[d, i, j] = Σ_{c,u,v} K[d, c, u, v] · x[c, i·s + u, j·s + v] + b_d
-```
+$$
+y[d,i,j]=\sum_{c,u,v}K[d,c,u,v]\cdot x[c,i\cdot s+u,j\cdot s+v]+b_d
+$$
 
 令核大小 k = p、步长 s = p，就是
 
-```text
-y[d, i, j] = Σ_{c,u,v} K[d, c, u, v] · x[c, i·p + u, j·p + v] + b_d
-```
+$$
+y[d,i,j]=\sum_{c,u,v}K[d,c,u,v]\cdot x[c,i\cdot p+u,j\cdot p+v]+b_d
+$$
 
 右边求和的正是第 (i, j) 个 patch 的全部像素，和 29.2.2 的 E·x_n + b 是同一个式子，只要 E 的第 d 行等于 K[d] 按 (c, u, v) 展平。窗口之间不重叠、也没有缝隙，每个像素恰好被用一次。
 
@@ -280,15 +284,15 @@ lab 第 1 部分把同一份权重分别送进两种写法，比较前向输出�
 
 **整除时**（数学结论）：
 
-```text
-N = (H/p) · (W/p)
-```
+$$
+N=\frac Hp\cdot\frac Wp
+$$
 
 **不能整除、先在右边和下边补白时**：
 
-```text
-N = ⌈H/p⌉ · ⌈W/p⌉
-```
+$$
+N=\left\lceil\frac Hp\right\rceil\cdot\left\lceil\frac Wp\right\rceil
+$$
 
 **加上 CLS**，送进 Transformer 的序列长度是 N + 1。
 

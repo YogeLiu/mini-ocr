@@ -97,17 +97,19 @@ CLIP（2021）把这句话写成了一个 softmax 交叉熵，用 4 亿对网上
 
 设第 i 张图的向量为 x_i，第 j 段文的向量为 y_j。先归一化：
 
-```text
-u_i = x_i / ‖x_i‖          v_j = y_j / ‖y_j‖
-c_ij = u_i · v_j            （余弦相似度，在 [−1, 1] 里）
-S_ij = c_ij / τ             （τ > 0 叫温度）
-```
+$$
+\begin{aligned}
+u_i &= \frac{x_i}{\lVert x_i\rVert},\qquad v_j=\frac{y_j}{\lVert y_j\rVert} \\
+c_{ij} &= u_i\cdot v_j\qquad\text{（余弦相似度，在 }[-1,1]\text{ 里）} \\
+S_{ij} &= \frac{c_{ij}}\tau\qquad\text{（}\tau>0\text{ 叫温度）}
+\end{aligned}
+$$
 
 写成矩阵就是一行：
 
-```text
-S = U Vᵀ / τ        U: (B, D)，V: (B, D)，S: (B, B)
-```
+$$
+S=\frac{UV^\top}\tau,\qquad U:(B,D),\quad V:(B,D),\quad S:(B,B)
+$$
 
 为什么要先归一化？因为点积有两个旋钮：方向和长度。不归一化时，模型可以靠把某些向量拉得很长来作弊，让它和谁的点积都大。归一化把长度锁死为 1，只剩方向可以学，分数就只表示方向像不像。
 
@@ -128,11 +130,9 @@ S = U Vᵀ / τ        U: (B, D)，V: (B, D)，S: (B, B)
 
 取 τ = 0.5，每个数乘以 2：
 
-```text
-S = C / 0.5 = [ 1.8   0.6   0.2 ]
-              [ 0.4   1.4   1.2 ]
-              [ 0.0   1.0   1.6 ]       形状 (3, 3)
-```
+$$
+S=\frac C{0.5}=\begin{bmatrix}1.8&0.6&0.2\\0.4&1.4&1.2\\0.0&1.0&1.6\end{bmatrix}\qquad\text{形状 }(3,3)
+$$
 
 （数学结论。）
 
@@ -177,23 +177,27 @@ S = C / 0.5 = [ 1.8   0.6   0.2 ]
 
 第 i 行（图 i 找文）的 softmax 概率和交叉熵：
 
-```text
-P^row_ij = exp(S_ij) / Σ_k exp(S_ik)
-ℓ^row_i  = −log P^row_ii = log Σ_k exp(S_ik) − S_ii
-```
+$$
+\begin{aligned}
+P^{\mathrm{row}}_{ij} &= \frac{\exp(S_{ij})}{\sum_k\exp(S_{ik})} \\
+\ell^{\mathrm{row}}_i &= -\log P^{\mathrm{row}}_{ii}=\log\sum_k\exp(S_{ik})-S_{ii}
+\end{aligned}
+$$
 
 第 j 列（文 j 找图）同理，只是沿列归一化：
 
-```text
-P^col_ij = exp(S_ij) / Σ_k exp(S_kj)
-ℓ^col_j  = −log P^col_jj = log Σ_k exp(S_kj) − S_jj
-```
+$$
+\begin{aligned}
+P^{\mathrm{col}}_{ij} &= \frac{\exp(S_{ij})}{\sum_k\exp(S_{kj})} \\
+\ell^{\mathrm{col}}_j &= -\log P^{\mathrm{col}}_{jj}=\log\sum_k\exp(S_{kj})-S_{jj}
+\end{aligned}
+$$
 
 两个方向各在 B 题上取平均，再对半：
 
-```text
-L_CLIP = ½ · [ (1/B) Σ_i ℓ^row_i  +  (1/B) Σ_j ℓ^col_j ]
-```
+$$
+L_{\mathrm{CLIP}}=\frac12\left[\frac1B\sum_i\ell^{\mathrm{row}}_i+\frac1B\sum_j\ell^{\mathrm{col}}_j\right]
+$$
 
 对照第 3 章的回顾：行项就是把 S 的 B 行当成 B 个样本、每个样本有 B 个类别的 logits，第 i 个样本的标签是 i，然后算普通的平均交叉熵；列项是对 Sᵀ 做同样的事。所以对称 InfoNCE 就是按行、按列各做一次交叉熵，再取平均。
 
@@ -226,9 +230,9 @@ L_CLIP = ½ · [ (1/B) Σ_i ℓ^row_i  +  (1/B) Σ_j ℓ^col_j ]
 
 列平均：(0.3449 + 0.7513 + 0.6507) / 3 = 0.5823。
 
-```text
-L_CLIP = (0.5833 + 0.5823) / 2 = 0.5828
-```
+$$
+L_{\mathrm{CLIP}}=\frac{0.5833+0.5823}{2}=0.5828
+$$
 
 对照基准线 log 3 = 1.0986：模型已经比瞎猜好不少。图 2 那一行的损失最大（0.7824），因为难负例文 3 抢走了不少概率。（以上是数学结论；用 `clip_loss` 在 CPU 上以 float64 复跑得到 0.58280，本项目 CPU 复跑。）
 
@@ -280,21 +284,21 @@ loss 只是一个数，改变模型的是梯度。弄懂梯度，就能回答两
 
 只看行项 (1/B) Σ_i ℓ^row_i。第 3.6 节的结论 ∂ℓ/∂z = p − y 直接套用到第 i 行：
 
-```text
-∂ℓ^row_i / ∂S_ij = P^row_ij − δ_ij          （δ_ij：i = j 时为 1，否则为 0）
-```
+$$
+\frac{\partial\ell^{\mathrm{row}}_i}{\partial S_{ij}}=P^{\mathrm{row}}_{ij}-\delta_{ij}\qquad\text{（}\delta_{ij}:i=j\text{ 时为 1，否则为 0）}
+$$
 
 列项同理，每一列是一道题：
 
-```text
-∂ℓ^col_j / ∂S_ij = P^col_ij − δ_ij
-```
+$$
+\frac{\partial\ell^{\mathrm{col}}_j}{\partial S_{ij}}=P^{\mathrm{col}}_{ij}-\delta_{ij}
+$$
 
 把前面的系数 ½ · (1/B) 乘上：
 
-```text
-G_ij = ∂L_CLIP / ∂S_ij = (1 / 2B) · [ (P^row_ij − δ_ij) + (P^col_ij − δ_ij) ]
-```
+$$
+G_{ij}=\frac{\partial L_{\mathrm{CLIP}}}{\partial S_{ij}}=\frac1{2B}\left[(P^{\mathrm{row}}_{ij}-\delta_{ij})+(P^{\mathrm{col}}_{ij}-\delta_{ij})\right]
+$$
 
 读这个式子：
 
@@ -304,9 +308,9 @@ G_ij = ∂L_CLIP / ∂S_ij = (1 / 2B) · [ (P^row_ij − δ_ij) + (P^col_ij − 
 
 再往回传一步。S = U Vᵀ / τ，所以
 
-```text
-∂L / ∂u_i = (1/τ) Σ_j G_ij v_j
-```
+$$
+\frac{\partial L}{\partial u_i}=\frac1\tau\sum_j G_{ij}v_j
+$$
 
 图向量 u_i 收到的是所有文本向量的加权和：正例权重为负（梯度下降后朝 v_i 走），负例权重为正（朝远离 v_j 走）。最后还要穿过归一化 u = x / ‖x‖，它的雅可比是 (I − u uᵀ)/‖x‖，作用是**去掉沿 u 方向的分量**：在单位球面上只能转方向，不能变长短。
 
@@ -316,11 +320,12 @@ G_ij = ∂L_CLIP / ∂S_ij = (1 / 2B) · [ (P^row_ij − δ_ij) + (P^col_ij − 
 
 用 30.3.4 的数字。行 softmax 和列 softmax 分别是：
 
-```text
-P^row = [ 0.6653  0.2004  0.1343 ]      P^col = [ 0.7083  0.2120  0.1286 ]
-        [ 0.1682  0.4573  0.3744 ]              [ 0.1747  0.4718  0.3497 ]
-        [ 0.1153  0.3135  0.5712 ]              [ 0.1171  0.3162  0.5217 ]
-```
+$$
+\begin{aligned}
+P^{\mathrm{row}} &= \begin{bmatrix}0.6653&0.2004&0.1343\\0.1682&0.4573&0.3744\\0.1153&0.3135&0.5712\end{bmatrix} \\
+P^{\mathrm{col}} &= \begin{bmatrix}0.7083&0.2120&0.1286\\0.1747&0.4718&0.3497\\0.1171&0.3162&0.5217\end{bmatrix}
+\end{aligned}
+$$
 
 这些概率直接来自 30.3.4 的两张表：每个 exp 除以它所在行或列的和。比如 P^row_23 = e^1.2 / 8.8671 = 3.3201 / 8.8671 = 0.3744，P^col_23 = 3.3201 / 9.4945 = 0.3497。同一个 e^1.2，分母换成第 3 列的和，就得到列方向的概率。
 
@@ -333,11 +338,9 @@ P^row = [ 0.6653  0.2004  0.1343 ]      P^col = [ 0.7083  0.2120  0.1286 ]
 
 完整的梯度矩阵：
 
-```text
-G = [ −0.1044   0.0687   0.0438 ]
-    [  0.0571  −0.1785   0.1207 ]      形状 (3, 3)
-    [  0.0387   0.1050  −0.1512 ]
-```
+$$
+G=\begin{bmatrix}-0.1044&0.0687&0.0438\\0.0571&-0.1785&0.1207\\0.0387&0.1050&-0.1512\end{bmatrix}\qquad\text{形状 }(3,3)
+$$
 
 看第 2 行：正例拉力最大（−0.1785），难负例文 3 的推力（0.1207）是第 2 行另一个负例（0.0571）的两倍多。
 
@@ -393,15 +396,15 @@ torch.testing.assert_close(S.grad, G.detach())
 
 把第 i 行的损失改写成和正例的差：
 
-```text
-ℓ^row_i = log Σ_k exp((c_ik − c_ii) / τ) = log [ 1 + Σ_{k≠i} exp((c_ik − c_ii)/τ) ]
-```
+$$
+\ell^{\mathrm{row}}_i=\log\sum_k\exp\left(\frac{c_{ik}-c_{ii}}\tau\right)=\log\left[1+\sum_{k\ne i}\exp\left(\frac{c_{ik}-c_{ii}}\tau\right)\right]
+$$
 
 假设模型学得非常好：正例余弦为 1，所有负例余弦为 0（彼此正交）。那么
 
-```text
-ℓ^row_i = log(1 + (B − 1) · e^(−1/τ))
-```
+$$
+\ell^{\mathrm{row}}_i=\log\left(1+(B-1)e^{-1/\tau}\right)
+$$
 
 B = 32 时代入（数学结论）：
 
@@ -417,9 +420,9 @@ B = 32 时代入（数学结论）：
 
 当 τ → 0，求和里最大的那项压倒其他所有项：
 
-```text
-ℓ^row_i ≈ max(0, max_{k≠i} (c_ik − c_ii)) / τ
-```
+$$
+\ell^{\mathrm{row}}_i\approx\frac{\max(0,\max_{k\ne i}(c_{ik}-c_{ii}))}\tau
+$$
 
 如果正例已经第一，损失趋于 0，梯度也趋于 0；如果有负例反超，损失约等于"反超量 / τ"，梯度只流向那一个最难负例。这很像一个只看最难负例的铰链损失（数学结论）。
 
@@ -447,16 +450,18 @@ B = 32 时代入（数学结论）：
 
 CLIP 没有手调 τ，而是把它当参数学。为了保证 τ > 0 且优化稳定，学的是它的对数倒数：
 
-```text
-logit_scale = log(1/τ)           初始化 log(1/0.07) = 2.6593
-S = exp(logit_scale) · U Vᵀ
-```
+$$
+\begin{aligned}
+\mathrm{logit\_scale} &= \log(1/\tau)\qquad\text{初始化 }\log(1/0.07)=2.6593 \\
+S &= \exp(\mathrm{logit\_scale})UV^\top
+\end{aligned}
+$$
 
 这个参数的梯度是什么？记放大倍数 s = 1/τ（小写 s 是一个标量，不要和相似度矩阵 S 混淆），于是 S = s · C。对 s 求导，用链式法则把每一格的 ∂L/∂S_ij = G_ij 乘上 ∂S_ij/∂s = c_ij 再加起来：
 
-```text
-∂L / ∂s = Σ_ij G_ij · c_ij
-```
+$$
+\frac{\partial L}{\partial s}=\sum_{i,j}G_{ij}c_{ij}
+$$
 
 正例的 G 为负、c 大；负例的 G 为正、c 小。如果 embedding 固定、**每个正例在自己的行和列里都严格高于所有负例**，这个和就是负数，梯度下降就会让 s 增大，也就是 τ 变小。
 
@@ -591,35 +596,36 @@ SigLIP 的考法："这段文字是它吗？是 / 不是。"每道题独立打�
 
 给每一对一个标签：
 
-```text
-z_ij = +1   （i = j，正例）
-z_ij = −1   （i ≠ j，负例）
-```
+$$
+z_{ij}=\begin{cases}+1,&i=j\text{，正例},\\-1,&i\ne j\text{，负例}.\end{cases}
+$$
 
 这里的 z_ij 是标签，取值只有 ±1，和 30.3.1 回顾里的 logits z 不是一个东西。判断题的 logit 是缩放后的相似度再加一个偏置 b：S_ij + b。sigmoid 给出"是一对"的概率 σ(S_ij + b)。
 
 对一个标签 z ∈ {+1, −1}，logistic 损失可以合并成一个式子：
 
-```text
-−log σ(z · (S_ij + b)) = log(1 + exp(−z · (S_ij + b))) = softplus(−z · (S_ij + b))
-```
+$$
+-\log\sigma(z\cdot(S_{ij}+b))=\log(1+\exp(-z\cdot(S_{ij}+b)))=\operatorname{softplus}(-z\cdot(S_{ij}+b))
+$$
 
 （用了 σ(t) = 1/(1 + e^(−t))，以及 1 − σ(t) = σ(−t)；数学结论。）
 
 把 B² 对加起来，再**除以 B**：
 
-```text
-L_SigLIP = (1/B) Σ_i Σ_j softplus(−z_ij · (S_ij + b))
-```
+$$
+L_{\mathrm{SigLIP}}=\frac1B\sum_i\sum_j\operatorname{softplus}(-z_{ij}\cdot(S_{ij}+b))
+$$
 
 为什么除以 B 而不是 B²？SigLIP 论文就是这样归一化的：可以理解成"每张图一行判断题，对 B 张图取平均"，每行内部是求和。这个选择让每张图的损失量级随批量增长（每行有 B 道题），读 loss 数值时要记住。
 
 **梯度。** softplus 的导数是 σ。对 S_ij 求导（数学结论）：
 
-```text
-∂L / ∂S_ij = (1/B) · [ σ(S_ij + b) − 1(i = j) ]
-∂L / ∂b    = (1/B) · Σ_ij [ σ(S_ij + b) − 1(i = j) ]
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial S_{ij}} &= \frac1B\left[\sigma(S_{ij}+b)-\mathbf1(i=j)\right] \\
+\frac{\partial L}{\partial b} &= \frac1B\sum_{i,j}\left[\sigma(S_{ij}+b)-\mathbf1(i=j)\right]
+\end{aligned}
+$$
 
 和 CLIP 的 G 对比：形式都是"预测概率 − 标签"，但这里的概率是**每格自己的 sigmoid**，不是一行或一列的 softmax。一个负例被压多狠只看它自己的分数，不看邻居。
 
@@ -627,18 +633,20 @@ L_SigLIP = (1/B) Σ_i Σ_j softplus(−z_ij · (S_ij + b))
 
 设所有 S_ij = 0，要求偏置梯度为零：
 
-```text
-∂L/∂b = (1/B) · [ B² · σ(b) − B ] = B·σ(b) − 1 = 0
-⟹ σ(b) = 1/B ⟹ b = −log(B − 1)
-```
+$$
+\begin{aligned}
+\frac{\partial L}{\partial b} &= \frac1B\left[B^2\sigma(b)-B\right]=B\sigma(b)-1=0 \\
+&\Longrightarrow\sigma(b)=\frac1B\Longrightarrow b=-\log(B-1)
+\end{aligned}
+$$
 
 （数学结论。）B = 32 时 b = −3.434，B = 128 时 b = −4.844。这就是 `DualEncoder` 第 60 行的初始化。SigLIP 论文用的是另一个固定起点（偏置 −10、温度倒数 10），思路相同：开头先向"不是"倾斜（论文报告，待验证）。
 
 用这个偏置，零分数时的损失是（数学结论）：
 
-```text
-L_SigLIP(0) = log B + (B − 1) · log(B / (B − 1))
-```
+$$
+L_{\mathrm{SigLIP}}(0)=\log B+(B-1)\log\frac B{B-1}
+$$
 
 B = 32 时为 4.450，B = 128 时为 5.848。实测第一步：B = 32、τ = 0.2 时 4.568，B = 128、τ = 0.2 时 5.960（本项目观察，RTX 4090（租用），`logs/ch30_gpu_stdout.log` 的 `smoke` 行），和零分数基准接近。
 
@@ -646,19 +654,15 @@ B = 32 时为 4.450，B = 128 时为 5.848。实测第一步：B = 32、τ = 0.2
 
 B = 3，按上面的公式 b = −log(3 − 1) = −0.6931。S + b：
 
-```text
-S + b = [  1.1069  −0.0931  −0.4931 ]
-        [ −0.2931   0.7069   0.5069 ]
-        [ −0.6931   0.3069   0.9069 ]
-```
+$$
+S+b=\begin{bmatrix}1.1069&-0.0931&-0.4931\\-0.2931&0.7069&0.5069\\-0.6931&0.3069&0.9069\end{bmatrix}
+$$
 
 逐格算 softplus(−z · (S + b))。对角线 z = +1，算 log(1 + e^(−t))；非对角 z = −1，算 log(1 + e^(t))：
 
-```text
-逐对损失 = [ 0.2856  0.6477  0.4767 ]
-           [ 0.5573  0.4009  0.9783 ]
-           [ 0.4055  0.8583  0.3392 ]
-```
+$$
+\text{逐对损失}=\begin{bmatrix}0.2856&0.6477&0.4767\\0.5573&0.4009&0.9783\\0.4055&0.8583&0.3392\end{bmatrix}
+$$
 
 拿两格手算核对：
 
@@ -667,17 +671,18 @@ S + b = [  1.1069  −0.0931  −0.4931 ]
 
 九格求和 4.9495，除以 B = 3：
 
-```text
-L_SigLIP = 1.6498
-```
+$$
+L_{\mathrm{SigLIP}}=1.6498
+$$
 
 梯度（对 S）：σ(S + b) 减去单位阵，再除以 3：
 
-```text
-σ(S + b) = [ 0.7515  0.4767  0.3792 ]        ∂L/∂S = [ −0.0828  0.1589  0.1264 ]
-           [ 0.4272  0.6697  0.6241 ]                [  0.1424 −0.1101  0.2080 ]
-           [ 0.3333  0.5761  0.7124 ]                [  0.1111  0.1920 −0.0959 ]
-```
+$$
+\begin{aligned}
+\sigma(S+b) &= \begin{bmatrix}0.7515&0.4767&0.3792\\0.4272&0.6697&0.6241\\0.3333&0.5761&0.7124\end{bmatrix} \\
+\frac{\partial L}{\partial S} &= \begin{bmatrix}-0.0828&0.1589&0.1264\\0.1424&-0.1101&0.2080\\0.1111&0.1920&-0.0959\end{bmatrix}
+\end{aligned}
+$$
 
 偏置梯度是右边矩阵九个数之和，等于 0.6501 > 0：现在模型对负例说"是"的倾向太重，梯度下降会把 b 继续往下调。
 
@@ -774,9 +779,9 @@ SigLIP 论文里的温度和偏置都是学出来的、批量大得多，而我�
 - **图→文（i2t）**：第 i 张图作查询，把 N 段文按 C_i· 从大到小排，看第 i 段文的名次 r_i。
 - **文→图（t2i）**：第 j 段文作查询，把 N 张图按 C_·j 排，看第 j 张图的名次。
 
-```text
-R@K = (1/N) · #{ 查询 i : r_i ≤ K }
-```
+$$
+\mathrm{R@K}=\frac1N\cdot\#\{\text{查询 }i:r_i\le K\}
+$$
 
 几条数学结论：
 

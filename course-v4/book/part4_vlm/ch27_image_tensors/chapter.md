@@ -164,9 +164,9 @@ CHW 没有消失，只是被压进了每一行里。第 29 章讲 ViT 时会把�
 
 逐通道归一化：
 
-```text
-z[c, h, w] = (x[c, h, w] − mean[c]) / std[c]
-```
+$$
+z[c,h,w]=\frac{x[c,h,w]-\mathrm{mean}[c]}{\mathrm{std}[c]}
+$$
 
 逆变换：`x = z × std + mean`。
 
@@ -182,10 +182,12 @@ z[c, h, w] = (x[c, h, w] − mean[c]) / std[c]
 
 **手算一个尺子不对的例子。** 假设模型训练时用 mean = std = 0.5，你却用了 ImageNet 常见的 mean = 0.485、std = 0.229（红色通道）。一个纯白像素：
 
-```text
-模型期望：(1 − 0.5) / 0.5 = 1
-你给的：  (1 − 0.485) / 0.229 ≈ 2.25
-```
+$$
+\begin{aligned}
+\text{模型期望：}\quad &\frac{1-0.5}{0.5}=1 \\
+\text{你给的：}\quad &\frac{1-0.485}{0.229}\approx2.25
+\end{aligned}
+$$
 
 整张图的白底都被放大了一倍多（数学结论）。模型从没见过这么亮的白，后果是什么，没有实测，不能下结论（待验证），但这已经不是它训练时的输入分布了。
 
@@ -401,13 +403,15 @@ lab 第 2 部分用三个已知的单分式（例如 `\frac{a_i+b^{2}}{c_j+d^{2}
 
 **letterbox：**
 
-```text
-scale = 128 / max(32, 298) = 128 / 298 ≈ 0.4295
-新高 rh = round(32 × 0.4295) = round(13.74) = 14
-新宽 rw = round(298 × 0.4295) = 128
-上留白 top = (128 − 14) // 2 = 57
-下留白 = 128 − 57 − 14 = 57
-```
+$$
+\begin{aligned}
+\mathrm{scale} &= \frac{128}{\max(32,298)}=\frac{128}{298}\approx0.4295 \\
+\text{新高 }r_h &= \operatorname{round}(32\times0.4295)=\operatorname{round}(13.74)=14 \\
+\text{新宽 }r_w &= \operatorname{round}(298\times0.4295)=128 \\
+\text{上留白 }\mathrm{top} &= \left\lfloor\frac{128-14}{2}\right\rfloor=57 \\
+\text{下留白} &= 128-57-14=57
+\end{aligned}
+$$
 
 （数学结论；和逐条输出里记录的 `resized_hw = [14, 128]`、`top = 57` 一致，本项目观察。）
 

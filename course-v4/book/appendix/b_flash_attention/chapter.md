@@ -34,12 +34,14 @@
 
 新来一块分数 s，块内的 v 记作 vⱼ：
 
-```text
-m_new = max(m_old, max(s))
-α     = exp(m_old − m_new)
-l_new = α · l_old + Σ exp(sⱼ − m_new)
-o_new = α · o_old + Σ exp(sⱼ − m_new) vⱼ
-```
+$$
+\begin{aligned}
+m_{\mathrm{new}} &= \max(m_{\mathrm{old}},\max(s)) \\
+\alpha &= \exp(m_{\mathrm{old}}-m_{\mathrm{new}}) \\
+l_{\mathrm{new}} &= \alpha l_{\mathrm{old}}+\sum_j\exp(s_j-m_{\mathrm{new}}) \\
+o_{\mathrm{new}} &= \alpha o_{\mathrm{old}}+\sum_j\exp(s_j-m_{\mathrm{new}})v_j
+\end{aligned}
+$$
 
 旧的量是按 m_old 算的，换成 m_new 要乘 α，因为 exp(s − m_new) = exp(s − m_old) · exp(m_old − m_new)。
 

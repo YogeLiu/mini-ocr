@@ -98,10 +98,13 @@ CUDA_VISIBLE_DEVICES="" python -m book.part2_lm.ch10_rope.tour 3 4 5  # 只跑�
 
 原始 Transformer（Vaswani 等，2017，第 3.5 节）不训练位置表，而是用公式算：
 
-```text
-PE(t, 2i)   = sin(t · ωᵢ)
-PE(t, 2i+1) = cos(t · ωᵢ)        ωᵢ = 10000^(−2i/d)，i = 0, 1, …, d/2 − 1
-```
+$$
+\begin{aligned}
+\operatorname{PE}(t,2i) &= \sin(t\omega_i) \\
+\operatorname{PE}(t,2i+1) &= \cos(t\omega_i) \\
+\omega_i &= 10000^{-2i/d},\qquad i=0,1,\ldots,d/2-1
+\end{aligned}
+$$
 
 每一对维度 (2i, 2i+1) 是一个以频率 ωᵢ 转动的"指针"：i = 0 时 ω = 1，每走一个位置转 1 弧度，转得飞快；i 越大转得越慢。这像一块有很多根指针的钟：秒针区分相邻位置，时针区分远处的位置。
 
@@ -118,10 +121,12 @@ d = 8 时，四个频率是 1、0.1、0.01、0.001（数学结论）。脚本第
 
 **一个漂亮的性质：PE 自己的点积只看距离。** 计算位置 m 和 n 的编码的点积：
 
-```text
-PE(m)·PE(n) = Σᵢ [sin(mωᵢ) sin(nωᵢ) + cos(mωᵢ) cos(nωᵢ)]
-            = Σᵢ cos((n − m) ωᵢ)              （用 cos(a−b) 的恒等式）
-```
+$$
+\begin{aligned}
+\operatorname{PE}(m)\cdot\operatorname{PE}(n) &= \sum_i\left[\sin(m\omega_i)\sin(n\omega_i)+\cos(m\omega_i)\cos(n\omega_i)\right] \\
+&= \sum_i\cos((n-m)\omega_i)\qquad\text{（用 }\cos(a-b)\text{ 的恒等式）}
+\end{aligned}
+$$
 
 第二行用的是先修框里的 cos(a − b) = cos a cos b + sin a sin b，取 a = mωᵢ、b = nωᵢ，得到 cos((m − n)ωᵢ)；cos 是偶函数，所以它也等于 cos((n − m)ωᵢ)。结果只含 n − m（数学结论）。d = 8、距离 3 时，点积 = cos 3 + cos 0.3 + cos 0.03 + cos 0.003 = −0.9900 + 0.9553 + 0.9996 + 1.0000 ≈ 1.9649。脚本验证了两组位置：
 
@@ -136,11 +141,13 @@ PE(m)·PE(n) = Σᵢ [sin(mωᵢ) sin(nωᵢ) + cos(mωᵢ) cos(nωᵢ)]
 
 那正弦编码是不是已经解决了相对位置？没有。因为注意力里点积的不是 PE 本身，而是**加了 PE 的输入经过投影之后**的 q 和 k。把加法展开：
 
-```text
-qₘ · kₙ = (xₘ + pₘ) W_q · (xₙ + pₙ) W_k
-        = xₘW_q·xₙW_k  +  xₘW_q·pₙW_k  +  pₘW_q·xₙW_k  +  pₘW_q·pₙW_k
-          内容×内容        内容×位置        位置×内容        位置×位置
-```
+$$
+\begin{aligned}
+q_m\cdot k_n &= (x_m+p_m)W_q\cdot(x_n+p_n)W_k \\
+&= \underbrace{x_mW_q\cdot x_nW_k}_{\text{内容}\times\text{内容}}+\underbrace{x_mW_q\cdot p_nW_k}_{\text{内容}\times\text{位置}} \\
+&\quad+\underbrace{p_mW_q\cdot x_nW_k}_{\text{位置}\times\text{内容}}+\underbrace{p_mW_q\cdot p_nW_k}_{\text{位置}\times\text{位置}}
+\end{aligned}
+$$
 
 四项各有问题：
 
@@ -182,12 +189,12 @@ qₘ · kₙ = (xₘ + pₘ) W_q · (xₙ + pₙ) W_k
 
 把向量逆时针转 α 弧度，就是乘一个旋转矩阵：
 
-```text
-R(α) = [ cos α   −sin α ]
-       [ sin α    cos α ]
-
-R(α) · (x₀, x₁) = (x₀ cos α − x₁ sin α,  x₀ sin α + x₁ cos α)
-```
+$$
+\begin{aligned}
+R(\alpha) &= \begin{bmatrix}\cos\alpha&-\sin\alpha\\\sin\alpha&\cos\alpha\end{bmatrix} \\
+R(\alpha)\begin{pmatrix}x_0\\x_1\end{pmatrix} &= \begin{pmatrix}x_0\cos\alpha-x_1\sin\alpha\\x_0\sin\alpha+x_1\cos\alpha\end{pmatrix}
+\end{aligned}
+$$
 
 它有三个性质，下面都要用（都是数学结论）：
 
@@ -199,28 +206,34 @@ R(α) · (x₀, x₁) = (x₀ cos α − x₁ sin α,  x₀ sin α + x₁ cos α
 
 定义 RoPE 在二维的版本：
 
-```text
-f(q, m) = R(mθ) q
-f(k, n) = R(nθ) k
-```
+$$
+\begin{aligned}
+f(q,m) &= R(m\theta)q \\
+f(k,n) &= R(n\theta)k
+\end{aligned}
+$$
 
 一步一步算点积：
 
-```text
-f(q, m) · f(k, n) = (R(mθ) q)ᵀ (R(nθ) k)
-                  = qᵀ R(mθ)ᵀ R(nθ) k          （(AB)ᵀ = BᵀAᵀ）
-                  = qᵀ R(−mθ) R(nθ) k          （性质 1）
-                  = qᵀ R((n − m)θ) k           （性质 2）
-```
+$$
+\begin{aligned}
+f(q,m)\cdot f(k,n) &= (R(m\theta)q)^\top(R(n\theta)k) \\
+&= q^\top R(m\theta)^\top R(n\theta)k && \text{（}(AB)^\top=B^\top A^\top\text{）} \\
+&= q^\top R(-m\theta)R(n\theta)k && \text{（性质 1）} \\
+&= q^\top R((n-m)\theta)k && \text{（性质 2）}
+\end{aligned}
+$$
 
 最后一行只含 n − m：位置 m 和 n 各自的绝对值消失了，只剩相对距离，满足 10.2.3 节对 f 的要求。
 
 再把 qᵀ R(α) k 展开成标量，写成 α = (n − m)θ：
 
-```text
-qᵀ R(α) k = q₀(k₀ cos α − k₁ sin α) + q₁(k₀ sin α + k₁ cos α)
-          = (q₀k₀ + q₁k₁) cos α + (q₁k₀ − q₀k₁) sin α
-```
+$$
+\begin{aligned}
+q^\top R(\alpha)k &= q_0(k_0\cos\alpha-k_1\sin\alpha)+q_1(k_0\sin\alpha+k_1\cos\alpha) \\
+&= (q_0k_0+q_1k_1)\cos\alpha+(q_1k_0-q_0k_1)\sin\alpha
+\end{aligned}
+$$
 
 第一项括号里是原来的点积，第二项括号里是二维的"叉积"。距离为 0 时 α = 0，分数就是原来的点积，旋转没有任何影响。
 
@@ -246,9 +259,9 @@ qᵀ R(α) k = q₀(k₀ cos α − k₁ sin α) + q₁(k₀ sin α + k₁ cos �
 
 **用公式直接算。** α = 3 × 0.5 = 1.5，q₀k₀ + q₁k₁ = 0.6，q₁k₀ − q₀k₁ = −0.8：
 
-```text
-0.6 cos 1.5 − 0.8 sin 1.5 = 0.6 × 0.0707 − 0.8 × 0.9975 = 0.0424 − 0.7980 = −0.7556
-```
+$$
+0.6\cos1.5-0.8\sin1.5=0.6\times0.0707-0.8\times0.9975=0.0424-0.7980=-0.7556
+$$
 
 两条路得到同一个数。用复数写法也能核对：q = 1，k = 0.6 + 0.8i，Re[(0.6 + 0.8i)(cos 1.5 + i sin 1.5)] = 0.6 cos 1.5 − 0.8 sin 1.5 = −0.7556（数学结论）。脚本第 3 部分算了两组：
 
@@ -271,22 +284,25 @@ qᵀ R(α) k = q₀(k₀ cos α − k₁ sin α) + q₁(k₀ sin α + k₁ cos �
 
 一个头的 q 有 dh 维（本书默认 dh 是偶数）。把它切成 dh/2 对，每对是一个二维平面，各自转动。如果先把每一对的两维排在一起（相邻排列），写成矩阵就是一个分块对角矩阵：
 
-```text
-R_t = diag( R(tθ₀), R(tθ₁), …, R(tθ_{dh/2−1}) )      （坐标按 (0,1)(2,3)… 相邻排列时）
-```
+$$
+R_t=\operatorname{diag}\left(R(t\theta_0),R(t\theta_1),\ldots,R(t\theta_{d_h/2-1})\right)\quad\text{（坐标按 }(0,1)(2,3)\ldots\text{ 相邻排列时）}
+$$
 
 本书默认的"前后两半"顺序下，同一个变换写成
 
-```text
-R_t = [ C_t  −S_t ]      C_t = diag(cos tθ₀, …, cos tθ_{dh/2−1})
-      [ S_t   C_t ]      S_t = diag(sin tθ₀, …, sin tθ_{dh/2−1})
-```
+$$
+\begin{aligned}
+R_t &= \begin{bmatrix}C_t&-S_t\\S_t&C_t\end{bmatrix} \\
+C_t &= \operatorname{diag}(\cos(t\theta_0),\ldots,\cos(t\theta_{d_h/2-1})) \\
+S_t &= \operatorname{diag}(\sin(t\theta_0),\ldots,\sin(t\theta_{d_h/2-1}))
+\end{aligned}
+$$
 
 两种写法只差一个坐标重排（10.5.5 节）。无论哪种写法，每个平面只管自己那一对维度，平面与平面互不干扰。点积本来就是逐维相乘再相加，可以按维度对分组来加；每一组都是一个二维点积，满足 10.3.3 节的推导。所以整个点积是各平面点积之和：
 
-```text
-(R_m q) · (R_n k) = Σᵢ qᵢᵀ R((n − m)θᵢ) kᵢ       （qᵢ、kᵢ 是第 i 对维度）
-```
+$$
+(R_mq)\cdot(R_nk)=\sum_i q_i^\top R((n-m)\theta_i)k_i\quad\text{（}q_i,k_i\text{ 是第 }i\text{ 对维度）}
+$$
 
 每一项都只依赖 n − m，所以总和也只依赖 n − m（数学结论）。R_t 是正交矩阵，所以旋转不改变 q、k 的长度。
 
@@ -296,9 +312,9 @@ R_t = [ C_t  −S_t ]      C_t = diag(cos tθ₀, …, cos tθ_{dh/2−1})
 
 如果每对都用同一个 θ，等于只有一根指针。每过大约 2π/θ 个位置，指针就转回差不多的方向，相隔约一圈的位置角度非常接近，很难区分。整数位置一般不会严格重合，但会近似重复。而且所有平面提供的是同一种尺度的信息。办法和正弦编码一样，用一串几何级数的频率：
 
-```text
-θᵢ = base^(−2i/dh)，  i = 0, 1, …, dh/2 − 1，  base 默认 10000
-```
+$$
+\theta_i=\mathrm{base}^{-2i/d_h},\quad i=0,1,\ldots,d_h/2-1,\quad\mathrm{base}\text{ 默认 }10000
+$$
 
 - i = 0：θ₀ = 1，最快，每步转 1 弧度。
 - i 增大：频率按几何级数变小。
@@ -355,23 +371,27 @@ dh = 8、base = 10000 时（本书配对 (i, i+4)）：
 
 对第 i 对 (a, b) = (xᵢ, x_{i+dh/2})，转角 φᵢ = tθᵢ。下面两行就是 10.3.2 节的 R(φᵢ) 作用在 (a, b) 上：
 
-```text
-a' = a cos φᵢ − b sin φᵢ
-b' = a sin φᵢ + b cos φᵢ
-```
+$$
+\begin{aligned}
+a' &= a\cos\varphi_i-b\sin\varphi_i \\
+b' &= a\sin\varphi_i+b\cos\varphi_i
+\end{aligned}
+$$
 
 现在把所有对一起写。把 x 切成前一半 x₁ = (x₀ … x_{dh/2−1}) 和后一半 x₂ = (x_{dh/2} … x_{dh−1})。上面两行变成：
 
-```text
-前一半：x₁' = x₁ ⊙ cos φ − x₂ ⊙ sin φ
-后一半：x₂' = x₂ ⊙ cos φ + x₁ ⊙ sin φ
-```
+$$
+\begin{aligned}
+\text{前一半：}\quad x_1' &= x_1\odot\cos\varphi-x_2\odot\sin\varphi \\
+\text{后一半：}\quad x_2' &= x_2\odot\cos\varphi+x_1\odot\sin\varphi
+\end{aligned}
+$$
 
 （⊙ 是逐元素乘，φ = (φ₀, …, φ_{dh/2−1})。）拼起来：
 
-```text
-[x₁', x₂'] = [x₁, x₂] ⊙ [cos φ, cos φ]  +  [−x₂, x₁] ⊙ [sin φ, sin φ]
-```
+$$
+[x_1',x_2']=[x_1,x_2]\odot[\cos\varphi,\cos\varphi]+[-x_2,x_1]\odot[\sin\varphi,\sin\varphi]
+$$
 
 于是只需要两样东西：
 
@@ -477,9 +497,9 @@ q, k = apply_rope(q, cos, sin), apply_rope(k, cos, sin)
 
 **等价。** 把"前后两半"的向量按索引 [0, 4, 1, 5, 2, 6, 3, 7] 重排，原来的配对 (0,4)、(1,5)… 就变成了相邻的 (0,1)、(2,3)…。于是：
 
-```text
-相邻实现( q[p] ) = 前后实现( q )[p]，   p = [0, 4, 1, 5, 2, 6, 3, 7]
-```
+$$
+\text{相邻实现}(q[p])=\text{前后实现}(q)[p],\qquad p=[0,4,1,5,2,6,3,7]
+$$
 
 脚本第 5 部分验证了这一点，并验证两种实现各自都满足相对位置性质：
 
@@ -526,17 +546,17 @@ q, k = apply_rope(q, cos, sin), apply_rope(k, cos, sin)
 
 只转 q、k 时，位置 m 的输出是
 
-```text
-yₘ = Σₙ wₘₙ vₙ，   wₘₙ = softmax_n( qᵀ R((n − m)θ) k / √dh )
-```
+$$
+y_m=\sum_n w_{mn}v_n,\qquad w_{mn}=\operatorname{softmax}_n\left(\frac{q^\top R((n-m)\theta)k}{\sqrt{d_h}}\right)
+$$
 
 权重只依赖相对距离，v 是原样的内容，所以整个输出只依赖相对布局。把整段序列往后挪 s 个位置，每个 wₘₙ 都不变，输出也不变。
 
 如果把 v 也转了，vₙ 换成 R(nθ) vₙ：
 
-```text
-yₘ = Σₙ wₘₙ R(nθ) vₙ
-```
+$$
+y_m=\sum_n w_{mn}R(n\theta)v_n
+$$
 
 每个 vₙ 按它**自己的绝对位置** n 转。整段平移 s 以后，权重 wₘₙ 不变，每个 vₙ 改转 R((n + s)θ)。由性质 2，R((n + s)θ) = R(sθ) R(nθ)，而 R(sθ) 和 n 无关，可以提到求和号外面：Σ wₘₙ R((n + s)θ) vₙ = R(sθ) yₘ，输出整体多转了 sθ。没有任何东西能把这个 R(sθ) 抵消掉。后面的输出投影 W_o、残差流、前馈网络都不知道这个向量被转过，同一个内容会因为出现的位置不同而变成不同的向量。
 
@@ -569,15 +589,15 @@ RoPE 论文（Su 等，第 3.4.3 节）论证了一个性质：随着相对距�
 
 取 q = k = 全 1 向量。每一对平面 (1, 1) 与转过 α 的 (1, 1) 的点积是：
 
-```text
-(1, 1) · R(α)(1, 1) = (1, 1) · (cos α − sin α, sin α + cos α) = 2 cos α
-```
+$$
+(1,1)\cdot R(\alpha)(1,1)=(1,1)\cdot(\cos\alpha-\sin\alpha,\sin\alpha+\cos\alpha)=2\cos\alpha
+$$
 
 所以总分数是一个只和距离 Δ 有关的函数：
 
-```text
-s(Δ) = Σᵢ 2 cos(Δ · θᵢ)，   i = 0 … dh/2 − 1
-```
+$$
+s(\Delta)=\sum_{i=0}^{d_h/2-1}2\cos(\Delta\theta_i)
+$$
 
 Δ = 0 时每项都是 2，s(0) = dh（数学结论）。
 
@@ -628,9 +648,9 @@ base 对验证 loss 的影响，请在 `lab.md` 第 3 节（实验一）自己�
 
 算一下量级（数学结论）。dh = 64、base = 10000 时，最慢的频率是
 
-```text
-θ_min = 10000^(−62/64) ≈ 1.3335 × 10⁻⁴，  波长 2π / θ_min ≈ 47117 个位置
-```
+$$
+\theta_{\min}=10000^{-62/64}\approx1.3335\times10^{-4},\qquad\text{波长 }\frac{2\pi}{\theta_{\min}}\approx47117\text{ 个位置}
+$$
 
 训练长度 4096 时，最慢平面最多转约 4096 × 1.3335 × 10⁻⁴ ≈ 0.546 弧度，连一圈的十分之一都不到。超过 4096 的部分它都没见过。
 
@@ -640,9 +660,9 @@ base 对验证 loss 的影响，请在 `lab.md` 第 3 节（实验一）自己�
 
 **增大 base**：频率按 base^(−2i/dh) 变，增大 base 让慢平面变慢、快平面基本不动（θ₀ 恒为 1）。这正好是我们想要的：慢平面被压缩，快平面保持分辨率。想让最慢的频率恰好缩小 s 倍（要求 dh > 2；dh = 2 时只有 θ₀ = 1 这一个频率，改 base 动不了它），解方程 base'^(−(dh−2)/dh) = base^(−(dh−2)/dh) / s。两边同除以 base^(−(dh−2)/dh)，得到 (base'/base)^(−(dh−2)/dh) = 1/s，再两边取 −dh/(dh−2) 次方：
 
-```text
-base' = base · s^(dh/(dh−2))
-```
+$$
+\mathrm{base}'=\mathrm{base}\cdot s^{d_h/(d_h-2)}
+$$
 
 dh = 64、s = 4 时，base' = 10000 × 4^(64/62) ≈ 41829（数学结论）。社区里叫它 "NTK-aware" 缩放。后来的 YaRN（Peng 等，2023）对不同频率分段处理，并调整注意力温度（待验证，本书不展开）。
 

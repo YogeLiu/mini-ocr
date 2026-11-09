@@ -168,9 +168,9 @@ processor 会先把图缩放一次，所以 H 和 W 不是你给的那个尺寸�
 
 **第一步，就近取整。**
 
-```text
-h₀ = round(h/f)·f,   w₀ = round(w/f)·f
-```
+$$
+h_0=\operatorname{round}(h/f)f,\qquad w_0=\operatorname{round}(w/f)f
+$$
 
 注意 Python 的 `round` 是"四舍六入五成双"：`round(2.5) = 2`，`round(3.5) = 4`。
 
@@ -178,26 +178,28 @@ h₀ = round(h/f)·f,   w₀ = round(w/f)·f
 
 - **缩小分支**，h₀·w₀ > M（太大）：令 s = √(h·w / M)。s 是边长要缩的倍数：面积是两条边相乘，要把面积缩到原来的 1/s²，两条边各除以 s 就够了，所以面积比要开平方。
 
-  ```text
-  H' = max(f, ⌊h/s/f⌋·f),   W' = max(f, ⌊w/s/f⌋·f)
-  ```
+$$
+H'=\max\left(f,\left\lfloor\frac{h}{sf}\right\rfloor f\right),\qquad W'=\max\left(f,\left\lfloor\frac{w}{sf}\right\rfloor f\right)
+$$
 
   向下取整。两条边都没有被 `max(f, …)` 钉住时，面积不超过 M；短边被钉在 f 时可能超过。例如 m = 16384、M = 65536 时，32×3200 缩成 32×2560，面积 81920 > 65536（数学结论，第 33 章的预算就是这一组）。
 - **放大分支**，h₀·w₀ < m（太小）：令 s = √(m / (h·w))，两条边各乘以 s，
 
-  ```text
-  H' = ⌈h·s/f⌉·f,   W' = ⌈w·s/f⌉·f
-  ```
+$$
+H'=\left\lceil\frac{hs}{f}\right\rceil f,\qquad W'=\left\lceil\frac{ws}{f}\right\rceil f
+$$
 
   向上取整，保证不低于 m。
 - 否则，面积在 [m, M] 之间：H' = h₀，W' = w₀。
 
 **第三步，数 token。**
 
-```text
-patch 数   N_patch = (H'/16)·(W'/16) = H'W'/256
-视觉 token N_vis   = N_patch / 4    = H'W'/1024
-```
+$$
+\begin{aligned}
+\text{patch 数：}\quad N_{\mathrm{patch}} &= \frac{H'}{16}\cdot\frac{W'}{16}=\frac{H'W'}{256} \\
+\text{视觉 token：}\quad N_{\mathrm{vis}} &= \frac{N_{\mathrm{patch}}}{4}=\frac{H'W'}{1024}
+\end{aligned}
+$$
 
 也就是说（数学结论）：**静态图片的视觉 token 数等于缩放后面积除以 1024。**1024 = 32²，正好是一个视觉 token 管的 32×32 像素；H'、W' 都是 32 的倍数，所以这个除法总能除尽。视觉编码器里跑的是 N_patch，语言模型里跑的是 N_vis，前者是后者的 4 倍。注意这是整幅缩放后画布的 token 总数，不是“有内容的 token”数：白边、空白区域照样占 token，墨迹落在多少块上要按网格逐块统计（见第 29 章 29.4.4 节）。
 
@@ -317,9 +319,9 @@ def smart_resize(height, width, factor=32, min_pixels=65536, max_pixels=262144):
 
 **每一行的 1536。** Qwen 的视觉塔原本是为视频设计的：patch 不仅是 16×16 的空间块，还在时间上跨 2 帧（`temporal_patch_size = 2`）。一张静态图怎么办？**复制一份当第二帧。**于是每个 patch 有
 
-```text
-C × T × P × P = 3 × 2 × 16 × 16 = 1536
-```
+$$
+C\times T\times P\times P=3\times2\times16\times16=1536
+$$
 
 个数（数学结论）。复制之后时间维有 2 帧，除以 2 得 `grid_t = 1`，所以 `image_grid_thw` 的第一个数是 1，不是 2。
 
@@ -467,9 +469,9 @@ return {"pixel_values": blocks.reshape(gh*gw, 3*t*p*p),
 
 **合计：**
 
-```text
-100,592,896（视觉塔，含 merger） + 752,393,024（语言模型） = 852,985,920
-```
+$$
+\underbrace{100{,}592{,}896}_{\text{视觉塔，含 merger}}+\underbrace{752{,}393{,}024}_{\text{语言模型}}=852{,}985{,}920
+$$
 
 和 tour 打印的 `parameters=852985920` 完全一致（本项目观察，远程日志）。
 
@@ -672,9 +674,9 @@ x = self.linear_fc2(self.act_fn(self.linear_fc1(x)))  # → [75, 1024]
 
 processor 把唯一的 `<|image_pad|>` 换成 N_vis 个：
 
-```text
-N_vis = (grid_t · grid_h · grid_w) / merge² = prod(image_grid_thw) / 4
-```
+$$
+N_{\mathrm{vis}}=\frac{\mathrm{grid}_t\cdot\mathrm{grid}_h\cdot\mathrm{grid}_w}{\mathrm{merge}^2}=\frac{\operatorname{prod}(\mathrm{image\_grid\_thw})}{4}
+$$
 
 `<|vision_start|>` 和 `<|vision_end|>` 是普通的特殊 token，各占 1 个，不算视觉 token。
 

@@ -81,9 +81,9 @@
 
 先看最简单的情况：一个通道的输入 X（H×W），一个卷积核 K（k×k），偏置 b。输出 Y 在位置 (i, j) 的值是：
 
-```text
-Y[i, j] = Σ_{p=0}^{k-1} Σ_{q=0}^{k-1} K[p, q] · X[i + p, j + q] + b
-```
+$$
+Y[i,j]=\sum_{p=0}^{k-1}\sum_{q=0}^{k-1}K[p,q]\cdot X[i+p,j+q]+b
+$$
 
 用话说：把核的左上角放到 X 的 (i, j)，对应位置相乘，全部加起来，再加 b。
 
@@ -137,9 +137,9 @@ Y (2×2)
 
 公式变成：
 
-```text
-Y[n, f, i, j] = Σ_c Σ_p Σ_q W[f, c, p, q] · X[n, c, i·s + p, j·s + q] + b[f]
-```
+$$
+Y[n,f,i,j]=\sum_c\sum_p\sum_q W[f,c,p,q]\cdot X[n,c,i\cdot s+p,j\cdot s+q]+b[f]
+$$
 
 这里 s 是步长（下一节讲），X 是已经补过 padding 的输入。
 
@@ -165,24 +165,26 @@ Y[n, f, i, j] = Σ_c Σ_p Σ_q W[f, c, p, q] · X[n, c, i·s + p, j·s + q] + b[
 
 只看一维（高和宽各算一次）。补过 padding 后，输入长度是 H + 2p。窗口长 k，起点可以是 0, s, 2s, …，最后一个起点必须让窗口不出界：
 
-```text
-起点 m·s 满足 m·s + k ≤ H + 2p
-⇒ m ≤ (H + 2p − k) / s
-```
+$$
+\begin{aligned}
+\text{起点 }m\cdot s\text{ 满足：}\quad&m\cdot s+k\le H+2p \\
+&\Longrightarrow m\le\frac{H+2p-k}{s}
+\end{aligned}
+$$
 
 第二行是把不等式两边同时减去 k、再除以 s（s > 0，不等号方向不变）。m 只能取整数，所以最大的 m 是 ⌊(H + 2p − k) / s⌋；m 从 0 数起，个数还要再加 1，所以一共有
 
-```text
-H' = ⌊(H + 2p − k) / s⌋ + 1
-```
+$$
+H'=\left\lfloor\frac{H+2p-k}{s}\right\rfloor+1
+$$
 
 个位置，这是输出尺寸公式（数学结论）。向下取整的意思是：最后剩下的不够一个窗口的边角料直接扔掉。
 
 如果核里的元素之间隔开 d − 1 个空位（**空洞卷积**，dilation = d），k 个元素之间有 k − 1 个间隔，每个间隔跨 d 格，核实际覆盖的长度就是 d(k − 1) + 1。把公式里的 k 换成它即可：
 
-```text
-H' = ⌊(H + 2p − d(k − 1) − 1) / s⌋ + 1
-```
+$$
+H'=\left\lfloor\frac{H+2p-d(k-1)-1}{s}\right\rfloor+1
+$$
 
 d = 1 时两式相同。本章代码用的是这个通用版本。
 
@@ -302,41 +304,44 @@ def conv_forward(x, weight, bias, stride=1, padding=0):
 
 为了看清楚，先只写单样本、单通道、单个核、步长 s、输入已经补过 padding 的情况：
 
-```text
-Y[i, j] = Σ_p Σ_q W[p, q] · X[i·s + p, j·s + q] + b
-```
+$$
+Y[i,j]=\sum_p\sum_q W[p,q]\cdot X[i\cdot s+p,j\cdot s+q]+b
+$$
 
 链式法则：L 对某个量的导数，等于所有用到它的 Y[i, j] 的贡献之和，每一份是 dY[i, j] 乘以 Y[i, j] 对它的局部导数。
 
 **db**，每个 Y[i, j] 里 b 的系数都是 1：
 
-```text
-db = Σ_i Σ_j dY[i, j]
-```
+$$
+db=\sum_i\sum_j dY[i,j]
+$$
 
 **dW**，Y[i, j] 里 W[p, q] 的系数是 X[i·s + p, j·s + q]：
 
-```text
-dW[p, q] = Σ_i Σ_j dY[i, j] · X[i·s + p, j·s + q]
-```
+$$
+dW[p,q]=\sum_i\sum_j dY[i,j]\cdot X[i\cdot s+p,j\cdot s+q]
+$$
 
 步长 s = 1 时，这和前向的形状一模一样：拿 dY 当核，在 X 上做一次互相关。s > 1 时要小心：相邻的 dY[i, j] 在 X 上相隔 s 格，所以得先在 dY 的元素之间插入 s − 1 个零（等价于把 dY 当作 dilation = s 的核），再做互相关，只保留前 k 个结果（数学结论）。一维小例子：X = [1, 2, 3, 4, 5]、核长 2、s = 2、dY = [1, 2]，正确的 dW = [1·1 + 2·3, 1·2 + 2·4] = [7, 10]，因为 Y[1] 的窗口起点是 1·2 = 2，读的是 X[2]、X[3]。直接拿 [1, 2] 去做步长 1 的互相关，等于以为 Y[1] 读的是 X[1]、X[2]，前两项算成 [1·1 + 2·2, 1·2 + 2·3] = [5, 8]。
 
 **dX**，反过来问：X[a, b] 出现在哪些 Y[i, j] 里？当 a = i·s + p、b = j·s + q 时，系数是 W[p, q]。所以
 
-```text
-dX[a, b] = Σ_{(i,j,p,q) : i·s+p = a, j·s+q = b} dY[i, j] · W[p, q]
-```
+$$
+dX[a,b]=\sum_{\substack{(i,j,p,q):\\i\cdot s+p=a,\ j\cdot s+q=b}}dY[i,j]\cdot W[p,q]
+$$
 
 直接按这个式子求和不好写：对每个 (a, b) 都要先解出哪些 (i, p) 满足 i·s + p = a。换个角度：**遍历每个输出位置 (i, j)，把 dY[i, j] · W 整块"撒"回它当初读的那个窗口。**两种写法加的是同一批 dY[i, j] · W[p, q]，每一项都加到位置 (i·s + p, j·s + q) 上，只是把求和的循环顺序换了：原式外层循环 (a, b)，撒回去的写法外层循环 (i, j)。每个窗口都撒一遍，重叠的地方自然累加起来。撒回去的过程也等价于把 dY 补零后和翻转的核做一次全卷积（full convolution），步长大于 1 时还要先在 dY 里插零，末尾没被任何窗口读到的输入位置梯度补 0。代码里不必这么绕。
 
 最后把多样本、多通道补回来：
 
-```text
-db[f]          = Σ_n Σ_i Σ_j dY[n, f, i, j]
-dW[f, c, p, q] = Σ_n Σ_i Σ_j dY[n, f, i, j] · X[n, c, i·s + p, j·s + q]
-dX[n, c, ·, ·] += Σ_f dY[n, f, i, j] · W[f, c, ·, ·]   （对每个 (i, j)，加到对应窗口上）
-```
+$$
+\begin{aligned}
+db[f] &= \sum_n\sum_i\sum_j dY[n,f,i,j] \\
+dW[f,c,p,q] &= \sum_n\sum_i\sum_j dY[n,f,i,j]\cdot X[n,c,i\cdot s+p,j\cdot s+q] \\
+dX[n,c,\cdot,\cdot] &\mathrel{+}=\sum_f dY[n,f,i,j]\cdot W[f,c,\cdot,\cdot] \\
+&\qquad\text{（对每个 }(i,j)\text{，加到对应窗口上）}
+\end{aligned}
+$$
 
 dW 对 n 求和，因为同一组权重被批里的每张图都用了一次。dX 对 f 求和，因为同一个输入像素被每个核都读了一次。
 
@@ -355,12 +360,14 @@ X (3×3)        W (2×2)       b = 0.5
 
 **前向**，Y 是 2×2：
 
-```text
-Y[0,0] = 1·1 + 2·(−1) + 0·2 + 1·0 + 0.5 = −0.5
-Y[0,1] = 2·1 + 0·(−1) + 1·2 + 3·0 + 0.5 =  4.5
-Y[1,0] = 0·1 + 1·(−1) + 2·2 + 1·0 + 0.5 =  3.5
-Y[1,1] = 1·1 + 3·(−1) + 1·2 + 0·0 + 0.5 =  0.5
-```
+$$
+\begin{aligned}
+Y[0,0] &= 1\cdot1+2\cdot(-1)+0\cdot2+1\cdot0+0.5=-0.5 \\
+Y[0,1] &= 2\cdot1+0\cdot(-1)+1\cdot2+3\cdot0+0.5=4.5 \\
+Y[1,0] &= 0\cdot1+1\cdot(-1)+2\cdot2+1\cdot0+0.5=3.5 \\
+Y[1,1] &= 1\cdot1+3\cdot(-1)+1\cdot2+0\cdot0+0.5=0.5
+\end{aligned}
+$$
 
 **上游梯度**，设 L = Σ Y ⊙ G，G 是一个随便取的 2×2 矩阵。L 是 Y 各元素的加权和，Y[i, j] 的系数就是 G[i, j]，所以 dY = G：
 
@@ -373,12 +380,14 @@ dY = 1  0
 
 **dW**，s = 1，直接用 dY 在 X 上做互相关：
 
-```text
-dW[0,0] = 1·X[0,0] + 0·X[0,1] + 2·X[1,0] − 1·X[1,1] = 1 + 0 + 0 − 1 = 0
-dW[0,1] = 1·X[0,1] + 0·X[0,2] + 2·X[1,1] − 1·X[1,2] = 2 + 0 + 2 − 3 = 1
-dW[1,0] = 1·X[1,0] + 0·X[1,1] + 2·X[2,0] − 1·X[2,1] = 0 + 0 + 4 − 1 = 3
-dW[1,1] = 1·X[1,1] + 0·X[1,2] + 2·X[2,1] − 1·X[2,2] = 1 + 0 + 2 − 0 = 3
-```
+$$
+\begin{aligned}
+dW[0,0] &= 1\cdot X[0,0]+0\cdot X[0,1]+2\cdot X[1,0]-1\cdot X[1,1]=1+0+0-1=0 \\
+dW[0,1] &= 1\cdot X[0,1]+0\cdot X[0,2]+2\cdot X[1,1]-1\cdot X[1,2]=2+0+2-3=1 \\
+dW[1,0] &= 1\cdot X[1,0]+0\cdot X[1,1]+2\cdot X[2,0]-1\cdot X[2,1]=0+0+4-1=3 \\
+dW[1,1] &= 1\cdot X[1,1]+0\cdot X[1,2]+2\cdot X[2,1]-1\cdot X[2,2]=1+0+2-0=3
+\end{aligned}
+$$
 
 **dX**，从全零的 3×3 开始，对每个输出位置把 dY[i, j]·W 撒回窗口：
 
@@ -488,10 +497,12 @@ lab 和测试的几何都特意选了矩形核、非正方形输入、N = 2、�
 
 第 l 层（核 k_l，步长 s_l）的一个单元看上一层连续 k_l 个单元。这 k_l 个单元中，相邻两个在输入上隔 j_{l−1}，首尾两个就相距 (k_l − 1)·j_{l−1}；每个单元自己又覆盖 r_{l−1} 宽。从第一个单元感受野的左端量到最后一个单元感受野的右端，长度是首尾的距离加上一个单元自己的宽度，也就是 r_{l−1} + (k_l − 1)·j_{l−1}。跳距的递推更直接：这一层相邻两个单元在上一层隔 s_l 个单元，上一层每个单元在输入上隔 j_{l−1}，相乘就是 j_l。所以
 
-```text
-r_l = r_{l−1} + (k_l − 1) · j_{l−1}
-j_l = j_{l−1} · s_l
-```
+$$
+\begin{aligned}
+r_l &= r_{l-1}+(k_l-1)j_{l-1} \\
+j_l &= j_{l-1}s_l
+\end{aligned}
+$$
 
 （数学结论。）空洞卷积把 k_l 换成 d(k_l − 1) + 1。padding 不改变感受野的大小，只改变它的位置（边缘单元的感受野有一部分落在补的 0 上）。
 
@@ -561,9 +572,9 @@ def receptive_field(layers):
 
 再做一次，相当于对原图做 4×4 平均：每块 16 个像素里有 4 个是线，平均 0.25。一般地，做 n 次后（这里用 n 表示池化次数，免得和卷积核大小 k 混淆），每个 2^n × 2^n 块里有 2^n 个线像素：
 
-```text
-线的对比度 = 2^n / 4^n = 1 / 2^n
-```
+$$
+\text{线的对比度}=\frac{2^n}{4^n}=\frac1{2^n}
+$$
 
 （数学结论。）2 次后 0.25，3 次后 0.125。这和线落在块的什么位置无关，因为 1 像素粗的线总是完整地落在某一行块里。
 
@@ -645,12 +656,14 @@ lab 第 3 部分取 256 张真实公式图（latex-v1 验证集，原生分辨�
 
 输入 X 形状 (N, C, H, W)。对每个通道 c，把这一批里所有图、所有位置的值放在一起（共 N·H·W 个数），求均值和方差：
 
-```text
-μ_c  = mean over (n, h, w) of X[n, c, h, w]
-σ²_c = mean over (n, h, w) of (X[n, c, h, w] − μ_c)²        （除以 N·H·W，有偏）
-X̂[n, c, h, w] = (X[n, c, h, w] − μ_c) / √(σ²_c + ε)
-Y[n, c, h, w] = γ_c · X̂[n, c, h, w] + β_c
-```
+$$
+\begin{aligned}
+\mu_c &= \frac1{NHW}\sum_{n,h,w}X[n,c,h,w] \\
+\sigma_c^2 &= \frac1{NHW}\sum_{n,h,w}(X[n,c,h,w]-\mu_c)^2\qquad\text{（除以 }NHW\text{，有偏）} \\
+\hat X[n,c,h,w] &= \frac{X[n,c,h,w]-\mu_c}{\sqrt{\sigma_c^2+\varepsilon}} \\
+Y[n,c,h,w] &= \gamma_c\hat X[n,c,h,w]+\beta_c
+\end{aligned}
+$$
 
 γ、β 是每个通道一对的可学习参数，让网络在需要时把标准化撤回去：对某一组固定的统计量，取 γ_c = √(σ²_c + ε)、β_c = μ_c，Y 就正好等于 X。训练时每批的 μ、σ² 都在变，γ、β 却是跨批共享的，所以这只说明网络有能力学回原来的尺度，不是每一批都能精确还原。ε 防止除以 0，默认 1e-5。
 
@@ -658,10 +671,13 @@ Y[n, c, h, w] = γ_c · X̂[n, c, h, w] + β_c
 
 **训练和推理不一样。** 训练时用当前这一批的 μ、σ²，同时维护一份滑动平均：
 
-```text
-running_mean ← (1 − m) · running_mean + m · μ
-running_var  ← (1 − m) · running_var  + m · σ²_unbiased      （σ² 乘 n/(n−1)，n = N·H·W）
-```
+$$
+\begin{aligned}
+\mathrm{running\_mean} &\leftarrow(1-m)\mathrm{running\_mean}+m\mu \\
+\mathrm{running\_var} &\leftarrow(1-m)\mathrm{running\_var}+m\sigma^2_{\mathrm{unbiased}} \\
+&\qquad\text{（}\sigma^2\text{ 乘 }n/(n-1),\quad n=NHW\text{）}
+\end{aligned}
+$$
 
 m 是 momentum，默认 0.1，表示**新观测**的权重。推理时（eval 模式）不再看当前批，直接用 running_mean、running_var。这样同一张图不管和谁放在一批，输出都一样。
 
@@ -784,10 +800,16 @@ def forward(self, x):
 
 参数量（数学结论，和 `training.json` 记录一致）：
 
-```text
-CNN：conv1 (1·9 + 1)·24 = 240；conv2 (24·9 + 1)·48 = 10,416；fc (3072 + 1)·24 = 73,752；合计 84,408
-MLP：(1024 + 1)·72 = 73,800；(72 + 1)·72 = 5,256；(72 + 1)·24 = 1,752；合计 80,808
-```
+$$
+\begin{aligned}
+\text{CNN：}\quad\mathrm{conv1}&:(1\cdot9+1)\cdot24=240 \\
+\mathrm{conv2}&:(24\cdot9+1)\cdot48=10{,}416 \\
+\mathrm{fc}&:(3072+1)\cdot24=73{,}752,\qquad\text{合计 }84{,}408 \\
+\text{MLP：}\quad &(1024+1)\cdot72=73{,}800 \\
+&(72+1)\cdot72=5{,}256 \\
+&(72+1)\cdot24=1{,}752,\qquad\text{合计 }80{,}808
+\end{aligned}
+$$
 
 两者差 4.5%，接近但不相等；计算量（FLOPs）差得更多。所以这是参数量相当的对照，不是严格等参数、等计算量的对照。
 

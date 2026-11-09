@@ -75,15 +75,15 @@ SFT 就是只在答案上做语言模型训练。预训练时，模型对整段�
 
 写成公式。设提示是 x，答案是 y = (y₁, …, y_m)，最后一个 y_m 是 EOS。按概率的链式法则，整段答案的条件概率等于逐个 token 的条件概率相乘，取对数后乘积变成求和：
 
-```text
-log p(y | x) = Σ_{j=1}^{m} log p(y_j | x, y_1, …, y_{j-1})
-```
+$$
+\log p(y\mid x)=\sum_{j=1}^m\log p(y_j\mid x,y_1,\ldots,y_{j-1})
+$$
 
 SFT 的 loss 就是它的负值除以答案 token 数 m（包括 EOS）：
 
-```text
-L = −(1/m) · Σ_{j=1}^{m} log p(y_j | x, y_<j)
-```
+$$
+L=-\frac1m\sum_{j=1}^m\log p(y_j\mid x,y_{<j})
+$$
 
 一批样本时，分子是所有答案 token 的 −log p 之和，分母是所有答案 token 的总数（数学结论，19.6.2 和 19.6.5 节会讲为什么分母用总数）。
 
@@ -377,9 +377,9 @@ def causal_loss(logits, labels, *, reduction="mean"):
 
 19.1.2 节说过，SFT 的目标是 log p(y | x)。如果把提示也算进 loss，目标就变成了联合概率：
 
-```text
-log p(x, y) = log p(x) + log p(y | x)
-```
+$$
+\log p(x,y)=\log p(x)+\log p(y\mid x)
+$$
 
 这一步用的是 p(x, y) = p(x) · p(y | x)，两边取对数，乘积变成求和。多出来的 log p(x) 是写出用户提问的能力。对后纠错来说，这意味着要模型学会**生成带噪的 OCR 公式**。这件事没用，而且和任务的方向正好相反。
 

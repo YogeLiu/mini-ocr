@@ -148,29 +148,31 @@ d["小猫"]    # → KeyError
 
 **第 1 步：算相似度。** 用点积 q·k 衡量相似度。两个向量方向越一致，点积越大。
 
-```
-q·k_猫   = 0.9×1.0 + 0.1×0.0 = 0.90
-q·k_狗   = 0.9×0.0 + 0.1×1.0 = 0.10
-q·k_老虎 = 0.9×0.8 + 0.1×0.6 = 0.78
-```
+$$
+\begin{aligned}
+q\cdot k_{\text{猫}} &= 0.9\times1.0+0.1\times0.0 = 0.90 \\
+q\cdot k_{\text{狗}} &= 0.9\times0.0+0.1\times1.0 = 0.10 \\
+q\cdot k_{\text{老虎}} &= 0.9\times0.8+0.1\times0.6 = 0.78
+\end{aligned}
+$$
 
 **第 2 步：取指数。** 把相似度变成正数，而且让大的更大。
 
-```
-e^0.90 = 2.4596    e^0.10 = 1.1052    e^0.78 = 2.1815    和 = 5.7462
-```
+$$
+e^{0.90}=2.4596,\quad e^{0.10}=1.1052,\quad e^{0.78}=2.1815,\quad\text{和}=5.7462
+$$
 
 **第 3 步：归一化。** 每个数除以总和，得到加起来等于 1 的权重。第 2、3 步合起来就是 softmax。
 
-```
-权重 = [2.4596, 1.1052, 2.1815] / 5.7462 = [0.4280, 0.1923, 0.3796]
-```
+$$
+\text{权重} = \frac{[2.4596,1.1052,2.1815]}{5.7462} = [0.4280,0.1923,0.3796]
+$$
 
 **第 4 步：加权平均。**
 
-```
-输出 = 0.4280×3 + 0.1923×5 + 0.3796×9 = 5.6625
-```
+$$
+\text{输出} = 0.4280\times3+0.1923\times5+0.3796\times9 = 5.6625
+$$
 
 结果是三个值的混合，"猫"占得最多。
 
@@ -186,9 +188,9 @@ e^0.90 = 2.4596    e^0.10 = 1.1052    e^0.78 = 2.1815    和 = 5.7462
 
 把同一个查询放大 10 倍，q = [9, 1]，方向不变，再做一次软查找（第 1 部分）：
 
-```
-权重 = [0.7683, 0.0003, 0.2314]    输出 = 4.3890
-```
+$$
+\text{权重}=[0.7683,0.0003,0.2314],\qquad\text{输出}=4.3890
+$$
 
 权重明显更集中了，"狗"几乎被忽略。原因是放大以后相似度之间的差距也放大了 10 倍，而 softmax 对差距很敏感：差距越大，最大的那个占得越多。
 
@@ -200,11 +202,13 @@ softmax 只看分数之间的差。每个分数都加上同一个常数 c，分�
 
 把上面的四步写成一个公式。设有 n 个键值对，查询为 q：
 
-```
-s_j = q · k_j                       相似度（j = 1, …, n）
-a_j = e^{s_j} / Σ_m e^{s_m}         权重 = softmax(s)_j
-out = Σ_j a_j v_j                   加权平均
-```
+$$
+\begin{aligned}
+s_j &= q\cdot k_j && \text{相似度（}j=1,\ldots,n\text{）} \\
+a_j &= \frac{e^{s_j}}{\sum_m e^{s_m}} && \text{权重}=\operatorname{softmax}(s)_j \\
+\mathrm{out} &= \sum_j a_jv_j && \text{加权平均}
+\end{aligned}
+$$
 
 下面要回答的问题是：在一个序列里，q、k、v 从哪里来？
 
@@ -225,21 +229,25 @@ out = Σ_j a_j v_j                   加权平均
 
 每个 token 进入注意力层时是一个向量 x（它的嵌入，维度记为 d_model）。q、k、v 由 x 乘以三个**可学习的**矩阵得到：
 
-```
-q = x W_Q        W_Q 形状 (d_model, d_k)
-k = x W_K        W_K 形状 (d_model, d_k)
-v = x W_V        W_V 形状 (d_model, d_v)
-```
+$$
+\begin{aligned}
+q &= xW_Q && W_Q\text{ 形状 }(d_{\mathrm{model}},d_k) \\
+k &= xW_K && W_K\text{ 形状 }(d_{\mathrm{model}},d_k) \\
+v &= xW_V && W_V\text{ 形状 }(d_{\mathrm{model}},d_v)
+\end{aligned}
+$$
 
 q 和 k 要做点积，维度必须相同（都是 d_k）。v 的维度 d_v 可以不同，但实践中通常相同。
 
 把 T 个 token 的向量按行叠成矩阵 X（形状 (T, d_model)），三个投影可以一次算完：
 
-```
-Q = X W_Q    形状 (T, d_k)，第 i 行就是第 i 个 token 的 q_i
-K = X W_K    形状 (T, d_k)
-V = X W_V    形状 (T, d_v)
-```
+$$
+\begin{aligned}
+Q &= XW_Q && \text{形状 }(T,d_k)\text{，第 }i\text{ 行就是第 }i\text{ 个 token 的 }q_i \\
+K &= XW_K && \text{形状 }(T,d_k) \\
+V &= XW_V && \text{形状 }(T,d_v)
+\end{aligned}
+$$
 
 ### 8.3.3 数值例子
 
@@ -263,9 +271,9 @@ x3 = [1, 1, 1, 1]
 
 先手算 q1。行向量乘矩阵，就是用 x1 的每个分量去乘矩阵对应的那一行，再相加：
 
-```
-q1 = x1 W_Q = 1×[1,0] + 0×[0,1] + 1×[1,0] + 0×[0,1] = [2, 0]
-```
+$$
+q_1 = x_1W_Q = 1\times[1,0]+0\times[0,1]+1\times[1,0]+0\times[0,1] = [2,0]
+$$
 
 同样可以算出全部结果：
 
@@ -303,20 +311,24 @@ q1 = x1 W_Q = 1×[1,0] + 0×[0,1] + 1×[1,0] + 0×[0,1] = [2, 0]
 
 ### 第 1 步：算分数 S = Q Kᵀ
 
-```
-Q 形状 (3, 2)，Kᵀ 形状 (2, 3)，S 形状 (3, 3)
-S[i][j] = q_i · k_j
-```
+$$
+\begin{aligned}
+&Q\text{ 形状 }(3,2),\quad K^\top\text{ 形状 }(2,3),\quad S\text{ 形状 }(3,3) \\
+&S[i][j]=q_i\cdot k_j
+\end{aligned}
+$$
 
 为什么要转置？K 的第 j 行是 k_j，转置以后 Kᵀ 的第 j 列就是 k_j。矩阵乘法的第 (i, j) 个元素是左边第 i 行和右边第 j 列的点积，也就是 q_i · k_j。中间那一维 d_k 在乘法里消掉，剩下 (T, T)。
 
 逐个算第 1 行（token 1 的查询 q1 = [2, 0] 和三个键比较）：
 
-```
-q1·k1 = 2×0 + 0×2 = 0
-q1·k2 = 2×3 + 0×0 = 6
-q1·k3 = 2×2 + 0×2 = 4
-```
+$$
+\begin{aligned}
+q_1\cdot k_1 &= 2\times0+0\times2 = 0 \\
+q_1\cdot k_2 &= 2\times3+0\times0 = 6 \\
+q_1\cdot k_3 &= 2\times2+0\times2 = 4
+\end{aligned}
+$$
 
 全部结果：
 
@@ -345,10 +357,12 @@ d_k = 2，√2 ≈ 1.4142。为什么要除，8.6 节专门讲。
 
 以第 1 行为例：
 
-```
-e^0 = 1.0000，e^4.2426 = 69.59，e^2.8284 = 16.92，和 = 87.51
-权重 = [1.0000, 69.59, 16.92] / 87.51 = [0.0114, 0.7952, 0.1933]
-```
+$$
+\begin{aligned}
+e^0 &= 1.0000,\quad e^{4.2426}=69.59,\quad e^{2.8284}=16.92,\quad\text{和}=87.51 \\
+\text{权重} &= \frac{[1.0000,69.59,16.92]}{87.51} = [0.0114,0.7952,0.1933]
+\end{aligned}
+$$
 
 得到权重矩阵 A（又叫注意力矩阵）：
 
@@ -371,11 +385,13 @@ A 的第 i 行乘 V，等于用这一行的 3 个权重给 V 的 3 行（v1、v2
 
 以第 1 行为例：
 
-```
-o1 = 0.0114×[1, 1] + 0.7952×[2, 1] + 0.1933×[2, 2]
-   = [0.0114 + 1.5904 + 0.3866,  0.0114 + 0.7952 + 0.3866]
-   = [1.9886, 1.1933]
-```
+$$
+\begin{aligned}
+o_1 &= 0.0114\times[1,1]+0.7952\times[2,1]+0.1933\times[2,2] \\
+&= [0.0114+1.5904+0.3866,\ 0.0114+0.7952+0.3866] \\
+&= [1.9886,1.1933]
+\end{aligned}
+$$
 
 全部结果：
 
@@ -391,9 +407,9 @@ o3 = [1.9546, 1.7679]
 
 上面四步可以写成一行：
 
-```
-Attention(Q, K, V) = softmax(Q Kᵀ / √d_k) V
-```
+$$
+\operatorname{Attention}(Q,K,V) = \operatorname{softmax}\left(\frac{QK^\top}{\sqrt{d_k}}\right)V
+$$
 
 各步的形状总结如下（T_q 是查询的个数，T_k 是键的个数，自注意力时二者都等于 T）：
 
@@ -455,25 +471,29 @@ out, w = attention(Q, K, V)     # out 形状 (3, 2)，w 形状 (3, 3)
 
 q·k 是 d 项乘积之和：
 
-```
-q·k = q_1 k_1 + q_2 k_2 + … + q_d k_d
-```
+$$
+q\cdot k = q_1k_1+q_2k_2+\cdots+q_dk_d
+$$
 
 **先看一项** q_i k_i。因为 q_i 和 k_i 独立、均值都是 0：
 
-```
-均值：E[q_i k_i] = E[q_i] · E[k_i] = 0 × 0 = 0
-方差：Var(q_i k_i) = E[(q_i k_i)²] − 0² = E[q_i²] · E[k_i²] = 1 × 1 = 1
-```
+$$
+\begin{aligned}
+\text{均值：}\quad\mathbb E[q_i k_i] &= \mathbb E[q_i]\mathbb E[k_i] = 0\times0 = 0 \\
+\text{方差：}\quad\operatorname{Var}(q_i k_i) &= \mathbb E[(q_i k_i)^2]-0^2 = \mathbb E[q_i^2]\mathbb E[k_i^2] = 1\times1 = 1
+\end{aligned}
+$$
 
 方差这一行用了三件事。第一是方差的定义 Var(X) = E[X²] − (E[X])²，上一行已经算出 E[q_i k_i] = 0，所以只剩 E[(q_i k_i)²] = E[q_i² k_i²]。第二是独立：q_i 和 k_i 独立，q_i² 和 k_i² 也就独立，独立变量乘积的均值等于均值的乘积。第三是 E[q_i²] = Var(q_i) + (E[q_i])² = 1 + 0 = 1，k_i 同理。
 
 **再看 d 项之和。** 不同的 i 用的是不同的分量，这 d 项乘积互相独立。独立随机变量之和的方差等于方差之和：
 
-```
-Var(q·k) = d × 1 = d
-标准差 = √d
-```
+$$
+\begin{aligned}
+\operatorname{Var}(q\cdot k) &= d\times1 = d \\
+\text{标准差} &= \sqrt d
+\end{aligned}
+$$
 
 这是数学结论。d = 64 时，点积的标准差是 8；d = 1024 时是 32。分数之间动不动就差几十，softmax 几乎全部押在最大的那个上。
 
@@ -483,10 +503,12 @@ Var(q·k) = d × 1 = d
 
 softmax 的导数是 `∂p_i/∂z_i = p_i(1 − p_i)`。当 p_i 接近 1 或接近 0 时，这个导数都接近 0。举个例子（第 4 部分）：
 
-```
-z = [10, 0, 0]  →  p = [0.999909, 0.000045, 0.000045]
-∂p_1/∂z_1 = 0.999909 × 0.000091 ≈ 0.000091
-```
+$$
+\begin{aligned}
+z=[10,0,0]\quad &\longrightarrow\quad p=[0.999909,0.000045,0.000045] \\
+\frac{\partial p_1}{\partial z_1} &= 0.999909\times0.000091\approx0.000091
+\end{aligned}
+$$
 
 导数只有万分之一。这叫 softmax **饱和**。饱和以后，无论分数怎么变，权重几乎不动，梯度传不回 q 和 k，W_Q 和 W_K 就学不动了。
 
@@ -494,9 +516,9 @@ z = [10, 0, 0]  →  p = [0.999909, 0.000045, 0.000045]
 
 既然点积的标准差是 √d，那就除以 √d，把标准差拉回 1：
 
-```
-Var(q·k / √d) = Var(q·k) / d = d / d = 1
-```
+$$
+\operatorname{Var}\left(\frac{q\cdot k}{\sqrt d}\right) = \frac{\operatorname{Var}(q\cdot k)}d = \frac dd = 1
+$$
 
 第一个等号用了 Var(cX) = c² Var(X)：常数提到方差外面要平方，这里 c = 1/√d，c² = 1/d。
 
@@ -622,9 +644,9 @@ mask = causal_mask(T) & keep[:, None, None, :]    # 多头：(T, T) & (B, 1, 1, 
 
 如果某一行的所有位置都被 mask 掉了，softmax 会算出：
 
-```
-softmax(−∞, −∞, −∞) = 0 / (0 + 0 + 0) = NaN
-```
+$$
+\operatorname{softmax}(-\infty,-\infty,-\infty) = \frac0{0+0+0} = \mathrm{NaN}
+$$
 
 实验脚本第 5 部分构造了这种情况，第 2 行的权重是 [nan, nan, nan]，输出也是 NaN。NaN 在反向传播时会扩散到所有参数，整个模型就坏了。
 
@@ -700,9 +722,9 @@ q = [0.284, 0.778, 0.818, -0.7, 0.382, 0.896, 0.609, 0.278]
 
 多头注意力有 4 个 d × d 的矩阵（W_Q、W_K、W_V、W_O），每个带一个 d 维的偏置：
 
-```
-参数量 = 4 × (d² + d)
-```
+$$
+\text{参数量} = 4(d^2+d)
+$$
 
 头数 h 只决定怎样**切分** d 维，不增加参数（第 6 部分）：
 
@@ -777,29 +799,29 @@ class MultiHeadAttention(nn.Module):
 
 **投影：** 打乱输入 → Q、K、V 的行也按同样方式打乱。
 
-```
-(PX) W_Q = P (X W_Q) = P Q      同理 PK、PV
-```
+$$
+(PX)W_Q = P(XW_Q) = PQ\qquad\text{同理 }PK,PV
+$$
 
 **分数：** 行和列都被打乱。
 
-```
-(PQ)(PK)ᵀ = P Q Kᵀ Pᵀ = P S Pᵀ
-```
+$$
+(PQ)(PK)^\top = PQK^\top P^\top = PSP^\top
+$$
 
 左乘 P 打乱了行（查询的顺序），右乘 Pᵀ 打乱了列（键的顺序）。
 
 **softmax：** softmax 是每一行单独做的。打乱行，只是换了每一行的位置；打乱列，只是换了一行之内各元素的位置，而 softmax 对一行内的元素一视同仁，换位置不影响结果，只是结果也跟着换了位置。所以：
 
-```
-softmax(P S Pᵀ) = P softmax(S) Pᵀ = P A Pᵀ
-```
+$$
+\operatorname{softmax}(PSP^\top) = P\operatorname{softmax}(S)P^\top = PAP^\top
+$$
 
 **输出：**
 
-```
-(P A Pᵀ)(P V) = P A (Pᵀ P) V = P A V = P O
-```
+$$
+(PAP^\top)(PV) = PA(P^\top P)V = PAV = PO
+$$
 
 这里用到 PᵀP = I（置换矩阵的逆就是它的转置）。最终输出 PO，就是原输出按同样方式打乱。这是数学结论。这个性质叫**置换等变**（permutation equivariance）。
 
@@ -821,9 +843,9 @@ softmax(P S Pᵀ) = P softmax(S) Pᵀ = P A Pᵀ
 
 既然注意力本身不知道顺序，就要显式地把位置告诉它。最简单的做法是**可学习的位置嵌入**：给每个位置一个可学习的向量，加到 token 的嵌入上：
 
-```
-x_i = token_embedding(t_i) + position_embedding(i)
-```
+$$
+x_i = \operatorname{token\_embedding}(t_i)+\operatorname{position\_embedding}(i)
+$$
 
 本章查表任务里的 `LookupNet` 就是这样做的，GPT-2 也是（第 17 章）。现代模型多用 RoPE，把位置编进 q、k 的旋转角度里，第 10 章专门讲。
 
